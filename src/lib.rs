@@ -1,2 +1,3 @@
 pub mod classification;
-pub mod neuron;
+pub mod perceptron;
+pub mod classifier;
