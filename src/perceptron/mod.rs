@@ -1,5 +1,13 @@
+#[cfg(test)]
+mod tests;
+
 mod neuron;
 mod helpers;
+
+use std::{
+    fmt,
+    fmt::Debug
+};
 
 use neuron::Neuron;
 use helpers::{
@@ -45,8 +53,9 @@ impl Perceptron {
         self.neuron.input_size()
     }
 
-    pub fn stochastic_learn(&mut self, datum: &Vec<f64>, expected: &Classification) {
-        self.neuron.learn(datum, expected);
+    // returns true if the perceptron learned something
+    pub fn stochastic_learn(&mut self, datum: &Vec<f64>, expected: &Classification) -> bool {
+        self.neuron.learn(datum, expected)
     }
 }
 
@@ -58,13 +67,25 @@ impl Classifier<Vec<f64>, Classification> for Perceptron {
         }
         // TODO: get the training method to use the data
         // randomly instead of in order
-        for (i, datum) in data.iter().enumerate() {
-            self.stochastic_learn(datum, &expect[i]);
+        let mut keep_going = true;
+        while keep_going {
+            keep_going = false;
+            for (i, datum) in data.iter().enumerate() {
+                keep_going |= self.stochastic_learn(datum, &expect[i]);
+            }
         }
         true
     }
 
     fn classify(&self, datum: &Vec<f64>) -> Classification {
         self.neuron.classify(datum)
+    }
+}
+
+impl Debug for Perceptron {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Perceptron:")
+         .field("neuron", &self.neuron)
+         .finish()
     }
 }

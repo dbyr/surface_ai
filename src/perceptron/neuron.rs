@@ -1,3 +1,8 @@
+use std::{
+    fmt,
+    fmt::Debug
+};
+
 use crate::classification::{
     Classification,
     Classification::Unclassifiable
@@ -67,8 +72,12 @@ impl Neuron {
 
     // pub fn batch_learn(&mut self, )
 
-    pub fn learn(&mut self, input: &Vec<f64>, expected: &Classification) {
+    // returns true if the neuron learned
+    pub fn learn(&mut self, input: &Vec<f64>, expected: &Classification) -> bool {
         let f_x = self.classify(input);
+        if f_x.certainty() < 0f32 {
+            return false;
+        }
 
         // saves doing a O(input.len()) operation,
         // even though the weights wouldn't change
@@ -82,6 +91,19 @@ impl Neuron {
                 expected,
                 &f_x
             );
+            true
+        } else {
+            false
         }
+    }
+}
+
+impl Debug for Neuron {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Neuron:")
+         .field("weights", &self.weights)
+         .field("bias", &self.bias)
+         .field("learning_rate", &self.learning_rate)
+         .finish()
     }
 }
