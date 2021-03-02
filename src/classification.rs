@@ -22,7 +22,7 @@ impl Classification {
         }
     }
 
-    pub fn class_match(&self, other: Classification) -> bool {
+    pub fn class_match(&self, other: &Classification) -> bool {
         match self {
             Positive(_) => other.positive(),
             Negative(_) => other.negative(),
