@@ -4,7 +4,7 @@ use crate::classification::{
     Classification::{Positive, Negative}
 };
 
-const EQUAL_THRESHOLD: f64 = 0.00000001;
+const EQUAL_THRESHOLD: f64 = 0.0000000001;
 
 // activation function for classic perceptron
 pub fn linear_function(x: f64) -> Classification {

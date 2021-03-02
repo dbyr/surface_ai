@@ -63,7 +63,7 @@ pub fn average_certainty(classes: &mut dyn Iterator<Item=Classification>) -> f64
         }
         count += 1;
     }
-    sum / (count as f64)
+    ((sum / (count as f64)) * 2f64) - 1f64 // re-scale the number
 }
 
 impl PartialEq for Classification {

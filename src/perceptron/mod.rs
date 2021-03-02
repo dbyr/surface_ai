@@ -70,22 +70,7 @@ impl Classifier<Vec<f64>, Classification> for Perceptron {
         if data.len() != expect.len() {
             return false;
         }
-        // TODO: get the training method to use the data
-        // randomly instead of in order
-        // match self.of_type {
-        //     Type::Linear => {
-        //         let mut learning_rate = LEARNING_RATE;
-        //         let mut keep_going = true;
-        //         while keep_going {
-        //             keep_going = false;
-        //             for (i, datum) in data.iter().enumerate() {
-        //                 keep_going |= self.stochastic_learn(datum, &expect[i]);
-        //             }
-        //             learning_rate -= learning_rate * LEARNING_RATE_DECAY;
-        //             self.neuron.set_learning_rate(learning_rate);
-        //         }
-        //     },
-        //     Type::Logistic => {
+
         let mut learning_rate = LEARNING_RATE;
         let mut previous_w = self.neuron.weights().clone();
         let mut previous_b = self.neuron.bias();
@@ -101,9 +86,7 @@ impl Classifier<Vec<f64>, Classification> for Perceptron {
             self.neuron.set_learning_rate(learning_rate);
             // iters.next();
         }
-                // println!("{:?} iterations done", iters.next());
-            // }
-        // }
+        // println!("{:?} iterations done", iters.next());
         self.neuron.set_learning_rate(LEARNING_RATE);
         true
     }
