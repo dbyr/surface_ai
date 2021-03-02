@@ -1,6 +1,7 @@
 use crate::classification::Classification;
 
-pub trait Classifier<T> {
-    fn train(&mut self, data: &Vec<T>);
+pub trait Classifier<T, C> {
+    // returns true if training was successful
+    fn train(&mut self, data: &Vec<T>, expect: &Vec<C>) -> bool;
     fn classify(&self, datum: &T) -> Classification;
 }

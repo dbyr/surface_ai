@@ -44,6 +44,10 @@ impl Neuron {
         self.weights.len()
     }
 
+    pub fn set_learning_rate(&mut self, new_rate: f64) {
+        self.learning_rate = new_rate;
+    }
+
     // classifies the given input using the present
     // state of the neuron
     pub fn classify(&self, inputs: &Vec<f64>) -> Classification {
