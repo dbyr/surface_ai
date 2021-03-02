@@ -9,7 +9,10 @@ use std::{
     fmt::Debug
 };
 
-use neuron::Neuron;
+use neuron::{
+    Neuron,
+    LEARNING_RATE
+};
 use helpers::{
     linear_function,
     linear_reweight,
@@ -19,6 +22,8 @@ use helpers::{
 
 use crate::classifier::Classifier;
 use crate::classification::Classification;
+
+const LEARNING_RATE_DECAY: f64 = 0.1;
 
 // TODO: add extra options such as allowing
 // deteriorating learning rate, and batch
@@ -39,7 +44,7 @@ impl Perceptron {
         }
     }
 
-    pub fn new_sigmoid(size: usize) -> Self {
+    pub fn new_logistic(size: usize) -> Self {
         Perceptron {
             neuron: Neuron::new(
                 size,
@@ -67,13 +72,39 @@ impl Classifier<Vec<f64>, Classification> for Perceptron {
         }
         // TODO: get the training method to use the data
         // randomly instead of in order
-        let mut keep_going = true;
-        while keep_going {
-            keep_going = false;
+        // match self.of_type {
+        //     Type::Linear => {
+        //         let mut learning_rate = LEARNING_RATE;
+        //         let mut keep_going = true;
+        //         while keep_going {
+        //             keep_going = false;
+        //             for (i, datum) in data.iter().enumerate() {
+        //                 keep_going |= self.stochastic_learn(datum, &expect[i]);
+        //             }
+        //             learning_rate -= learning_rate * LEARNING_RATE_DECAY;
+        //             self.neuron.set_learning_rate(learning_rate);
+        //         }
+        //     },
+        //     Type::Logistic => {
+        let mut learning_rate = LEARNING_RATE;
+        let mut previous_w = self.neuron.weights().clone();
+        let mut previous_b = self.neuron.bias();
+        // let mut iters = 0..;
+        loop {
             for (i, datum) in data.iter().enumerate() {
-                keep_going |= self.stochastic_learn(datum, &expect[i]);
+                self.stochastic_learn(datum, &expect[i]);
             }
+            if !self.neuron.weights_compare(&mut previous_w, &mut previous_b) {
+                break;
+            }
+            learning_rate -= learning_rate * LEARNING_RATE_DECAY;
+            self.neuron.set_learning_rate(learning_rate);
+            // iters.next();
         }
+                // println!("{:?} iterations done", iters.next());
+            // }
+        // }
+        self.neuron.set_learning_rate(LEARNING_RATE);
         true
     }
 

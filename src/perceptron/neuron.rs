@@ -3,10 +3,15 @@ use std::{
     fmt::Debug
 };
 
+use super::helpers::reasonably_equal;
+
 use crate::classification::{
     Classification,
     Classification::Unclassifiable
 };
+
+pub const LEARNING_RATE: f64 = 1f64;
+const INITIAL_WEIGHT_VAL: f64 = 0f64;
 
 pub struct Neuron {
     weights: Vec<f64>,
@@ -37,16 +42,43 @@ impl Neuron {
         )>
     ) -> Self {
         Neuron {
-            weights: vec!(0f64; size),
+            weights: vec!(INITIAL_WEIGHT_VAL; size),
             act_func: activation_func,
             reweight_func: reweight_func,
-            bias: 0f64,
-            learning_rate: 0.75
+            bias: INITIAL_WEIGHT_VAL,
+            learning_rate: LEARNING_RATE
         }
     }
 
     pub fn input_size(&self) -> usize {
         self.weights.len()
+    }
+
+    pub fn weights(&self) -> &Vec<f64> {
+        &self.weights
+    }
+    pub fn bias(&self) -> f64 {
+        self.bias
+    }
+
+    // compares the weights of the given values with
+    // what's currently held, updating any that are not
+    // equal and returning true only if anything was updated
+    pub fn weights_compare(&self, weights: &mut Vec<f64>, bias: &mut f64) -> bool {
+        if self.weights.len() != weights.len() { return false; }
+        
+        let mut updated = false;
+        if !reasonably_equal(&self.bias, bias) {
+            updated = true;
+        }
+        *bias = self.bias;
+        for (l, r) in self.weights.iter().zip(weights.iter_mut()) {
+            if !reasonably_equal(l, r) {
+                updated = true;
+            }
+            *r = *l;
+        }
+        updated
     }
 
     pub fn set_learning_rate(&mut self, new_rate: f64) {
@@ -63,7 +95,7 @@ impl Neuron {
                 format!("Input vector must be of length {}", self.input_size())
             );
         }
-        let mut input = 0f64;
+        let mut input = self.bias;
         for i in 0..inputs.len() {
             input += inputs[i] * self.weights[i];
         }
@@ -75,7 +107,7 @@ impl Neuron {
     // returns true if the neuron learned
     pub fn learn(&mut self, input: &Vec<f64>, expected: &Classification) -> bool {
         let f_x = self.classify(input);
-        if f_x.certainty() < 0f32 {
+        if f_x.certainty() < 0f64 {
             return false;
         }
 

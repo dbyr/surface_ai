@@ -1,13 +1,107 @@
 use crate::perceptron::Perceptron;
 use crate::classification::{
     Classification,
-    Classification::{Positive, Negative}
+    Classification::{Positive, Negative},
+    average_certainty
 };
 use crate::classifier::Classifier;
+use crate::test_methods::expect_success_rate;
 
 #[test]
-fn test_perceptron_learning() {
-    let data: Vec<Vec<f64>> = vec!(
+fn test_linear_perceptron_learning() {
+    let mut data = get_data();
+    let mut expect = get_expect();
+
+    assert_eq!(data.len(), expect.len());
+    let mut p = Perceptron::new_linear(2);
+
+    p.train(&data, &expect);
+    assert!(expect_success_rate(Box::new(&p), &data, &expect, 1.0));
+    assert!(p.classify(&vec!(5.4, 5.0)).positive());
+    assert!(p.classify(&vec!(7.0, 7.5)).positive());
+    assert!(p.classify(&vec!(4.5, 3.8)).positive());
+    assert!(p.classify(&vec!(7.0, 5.0)).negative());
+    assert!(p.classify(&vec!(5.0, 2.5)).negative());
+    assert!(p.classify(&vec!(5.4, 3.5)).negative());
+
+    add_to_data(&mut data);
+    add_to_expect(&mut expect);
+    let mut p = Perceptron::new_linear(2);
+
+    p.train(&data, &expect);
+    assert!(expect_success_rate(Box::new(&p), &data, &expect, 0.92));
+}
+
+#[test]
+fn test_logistic_peceptron_learning() {
+    let mut data = get_data();
+    let mut expect = get_expect();
+
+    let mut p = Perceptron::new_logistic(2);
+
+    p.train(&data, &expect);
+    for datum in data.iter() {
+        println!("{:?}", p.classify(datum));
+    }
+    println!("average certainty: {}", average_certainty(&mut data.iter().map(|x| p.classify(x))));
+    assert!(expect_success_rate(Box::new(&p), &data, &expect, 1f64));
+    assert!(p.classify(&vec!(5.4, 5.0)).positive());
+    assert!(p.classify(&vec!(7.0, 7.5)).positive());
+    assert!(p.classify(&vec!(4.5, 3.8)).positive());
+    assert!(p.classify(&vec!(7.0, 5.0)).negative());
+    assert!(p.classify(&vec!(5.0, 2.5)).negative());
+    assert!(p.classify(&vec!(5.4, 3.5)).negative());
+
+    add_to_data(&mut data);
+    add_to_expect(&mut expect);
+
+    let mut p = Perceptron::new_logistic(2);
+
+    p.train(&data, &expect);
+    for datum in data.iter() {
+        println!("{:?}", p.classify(datum));
+    }
+    println!("average certainty: {}", average_certainty(&mut data.iter().map(|x| p.classify(x))));
+    assert!(expect_success_rate(Box::new(&p), &data, &expect, 0.92));
+    // TODO: implement stratification and test via that
+}
+
+
+
+fn add_to_data(data: &mut Vec<Vec<f64>>) {
+    data.append(&mut vec!(
+        vec!(5.0, 4.0),
+        vec!(5.3, 3.7),
+        vec!(5.4, 4.2),
+        vec!(5.5, 3.5),
+        vec!(5.5, 3.9),
+        vec!(5.9, 5.0),
+        vec!(5.9, 5.5),
+        vec!(6.0, 5.5),
+        vec!(6.1, 5.6),
+        vec!(6.3, 5.6),
+        vec!(6.4, 5.7)
+    ));
+}
+
+fn add_to_expect(expect: &mut Vec<Classification>) {
+    expect.append(&mut vec!(
+        Positive(1f64),
+        Positive(1f64),
+        Negative(0f64),
+        Negative(0f64),
+        Negative(0f64),
+        Negative(0f64),
+        Negative(0f64),
+        Positive(1f64),
+        Positive(1f64),
+        Positive(1f64),
+        Negative(0f64)
+    ))
+}
+
+fn get_data() -> Vec<Vec<f64>> {
+    vec!(
         vec!(4.5, 4.8),
         vec!(4.7, 4.5),
         vec!(4.7, 4.1),
@@ -62,75 +156,64 @@ fn test_perceptron_learning() {
         vec!(6.2, 6.5),
         vec!(6.3, 6.5),
         vec!(6.6, 6.9)
-    );
-    let expect: Vec<Classification> = vec!(
-        Positive(1f32),
-        Positive(1f32),
-        Positive(1f32),
-        Positive(1f32),
-        Positive(1f32),
-        Positive(1f32),
-        Negative(0f32),
-        Positive(1f32),
-        Positive(1f32),
-        Positive(1f32),
-        Positive(1f32),
-        Positive(1f32),
-        Positive(1f32),
-        Negative(0f32),
-        Positive(1f32),
-        Positive(1f32),
-        Positive(1f32),
-        Positive(1f32),
-        Positive(1f32),
-        Positive(1f32),
-        Positive(1f32),
-        Negative(0f32),
-        Negative(0f32),
-        Negative(0f32),
-        Positive(1f32),
-        Negative(0f32),
-        Negative(0f32),
-        Negative(0f32),
-        Negative(0f32),
-        Positive(1f32),
-        Positive(1f32),
-        Positive(1f32),
-        Negative(0f32),
-        Negative(0f32),
-        Negative(0f32),
-        Negative(0f32),
-        Positive(1f32),
-        Negative(0f32),
-        Negative(0f32),
-        Negative(0f32),
-        Negative(0f32),
-        Negative(0f32),
-        Positive(1f32),
-        Positive(1f32),
-        Positive(1f32),
-        Positive(1f32),
-        Positive(1f32),
-        Positive(1f32),
-        Negative(0f32),
-        Negative(0f32),
-        Negative(0f32),
-        Positive(1f32),
-        Positive(1f32),
-        Positive(1f32),
-    );
+    )
+}
 
-    assert_eq!(data.len(), expect.len());
-    let mut p = Perceptron::new_linear(2);
-
-    p.train(&data, &expect);
-    for (i, expected) in expect.iter().enumerate() {
-        assert!(p.classify(&data[i]).class_match(expected));
-    }
-    assert!(p.classify(&vec!(5.4, 5.0)).positive());
-    assert!(p.classify(&vec!(7.0, 7.5)).positive());
-    assert!(p.classify(&vec!(4.5, 3.8)).positive());
-    assert!(p.classify(&vec!(7.0, 5.0)).negative());
-    assert!(p.classify(&vec!(5.0, 2.5)).negative());
-    assert!(p.classify(&vec!(5.4, 3.5)).negative());
+fn get_expect() -> Vec<Classification> {
+    vec!(
+        Positive(1f64),
+        Positive(1f64),
+        Positive(1f64),
+        Positive(1f64),
+        Positive(1f64),
+        Positive(1f64),
+        Negative(0f64),
+        Positive(1f64),
+        Positive(1f64),
+        Positive(1f64),
+        Positive(1f64),
+        Positive(1f64),
+        Positive(1f64),
+        Negative(0f64),
+        Positive(1f64),
+        Positive(1f64),
+        Positive(1f64),
+        Positive(1f64),
+        Positive(1f64),
+        Positive(1f64),
+        Positive(1f64),
+        Negative(0f64),
+        Negative(0f64),
+        Negative(0f64),
+        Positive(1f64),
+        Negative(0f64),
+        Negative(0f64),
+        Negative(0f64),
+        Negative(0f64),
+        Positive(1f64),
+        Positive(1f64),
+        Positive(1f64),
+        Negative(0f64),
+        Negative(0f64),
+        Negative(0f64),
+        Negative(0f64),
+        Positive(1f64),
+        Negative(0f64),
+        Negative(0f64),
+        Negative(0f64),
+        Negative(0f64),
+        Negative(0f64),
+        Positive(1f64),
+        Positive(1f64),
+        Positive(1f64),
+        Positive(1f64),
+        Positive(1f64),
+        Positive(1f64),
+        Negative(0f64),
+        Negative(0f64),
+        Negative(0f64),
+        Positive(1f64),
+        Positive(1f64),
+        Positive(1f64),
+    )
 }

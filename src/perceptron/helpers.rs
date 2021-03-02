@@ -4,12 +4,14 @@ use crate::classification::{
     Classification::{Positive, Negative}
 };
 
+const EQUAL_THRESHOLD: f64 = 0.00000001;
+
 // activation function for classic perceptron
 pub fn linear_function(x: f64) -> Classification {
     if x > 0f64 {
-        Positive(1f32)
+        Positive(1f64)
     } else {
-        Negative(0f32)
+        Negative(0f64)
     }
 }
 
@@ -17,10 +19,28 @@ pub fn linear_function(x: f64) -> Classification {
 pub fn logistic_function(x: f64) -> Classification {
     let result = 1f64 / (1f64 + E.powf(-x));
     if result > 0.5 {
-        Positive(result as f32)
+        Positive(result as f64)
     } else {
-        Negative(result as f32)
+        Negative(result as f64)
     }
+}
+
+fn linear_reweight_by(
+    expected: &Classification,
+    actual: &Classification,
+    learning_rate: &f64
+) -> f64 {
+    let mut reweight_by = if expected.positive() {
+        1f64
+    } else {
+        0f64
+    };
+    reweight_by -= if actual.positive() {
+        1f64
+    } else {
+        0f64
+    };
+    reweight_by * learning_rate
 }
 
 // reweight function for classic perceptron
@@ -34,17 +54,7 @@ pub fn linear_reweight(
 ) {
 
     // value by which all weights are changed
-    let mut reweight_by = if expected.positive() {
-        1f64
-    } else {
-        0f64
-    };
-    reweight_by -= if actual.positive() {
-        1f64
-    } else {
-        0f64
-    };
-    reweight_by *= learning_rate;
+    let reweight_by = linear_reweight_by(expected, actual, learning_rate);
 
     // all weights get reweighted, including bias
     for (i, weight) in weights.iter_mut().enumerate() {
@@ -76,5 +86,10 @@ pub fn logistic_reweight(
     for (i, weight) in weights.iter_mut().enumerate() {
         *weight += reweight_by * input[i];
     }
-    *bias += reweight_by; // bias "input" always 1
+    // *bias += linear_reweight_by(expected, actual, learning_rate);
+    *bias += reweight_by;
+}
+
+pub fn reasonably_equal(left: &f64, right: &f64) -> bool {
+    (left - right).abs() < EQUAL_THRESHOLD
 }
