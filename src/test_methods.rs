@@ -1,13 +1,25 @@
 use crate::classifier::{Classifier, Resettable};
+use rand::Rng;
+
+fn shuffle_class_data<T, C>(data: &mut Vec<T>, classes: &mut Vec<C>) {
+    let mut rng = rand::thread_rng();
+    let mut i = data.len();
+    let mut swap_to;
+    // method ripped from rand crate
+    while i >= 2 {
+        i -= 1;
+        swap_to = rng.gen_range(0..i + 1);
+        data.swap(i, swap_to);
+        classes.swap(i, swap_to);
+    }
+}
 
 // returns the average fidelity of the
 // classifier model when being trained on
 // train_on_portion fraction of the given
 // training data, and tested on 1-train_on_portion
 // fraction
-// TODO: Fix this function
-#[allow(dead_code)]
-fn stratified_testing<M, T, C>(
+pub fn cross_validation_testing<M, T, C>(
     classifier: &mut M,
     data: &mut Vec<T>,
     expect: &mut Vec<C>,
@@ -16,18 +28,20 @@ fn stratified_testing<M, T, C>(
 where M: Classifier<T, C> + Resettable, C: Eq, T: std::fmt::Debug {
     if data.len() != expect.len() { return None; }
     if train_on_portion <= 0f64 || train_on_portion >= 1f64 { return None; }
-
+    shuffle_class_data(data, expect);
 
     let end = data.len();
     let test_step = (end as f64 * (1f64 - train_on_portion)) as usize;
     let mut cur_test_start = 0;
     let mut cur_test_end = test_step;
-    let mut data_test = Vec::with_capacity(test_step);
-    let mut expect_test = Vec::with_capacity(test_step);
+    let mut data_test;
+    let mut expect_test;
     let mut correctness_sum = 0;
     let mut count = 0;
 
     while cur_test_start < end {
+        data_test = Vec::with_capacity(test_step);
+        expect_test = Vec::with_capacity(test_step);
 
         // separate the test and training portions
         while cur_test_start < cur_test_end {
@@ -35,7 +49,6 @@ where M: Classifier<T, C> + Resettable, C: Eq, T: std::fmt::Debug {
             expect_test.push(expect.pop().unwrap());
             cur_test_start += 1;
         }
-        println!("test data = {:?}", data_test);
 
         // train and test
         classifier.train(data, expect);
@@ -47,15 +60,10 @@ where M: Classifier<T, C> + Resettable, C: Eq, T: std::fmt::Debug {
         // test data back to the original vecs
         cur_test_end += test_step;
         if cur_test_end > end { cur_test_end = end; }
-        // I am aware the below portion of code is flawed
-        // and not currently working - haven't go around
-        // to fixing the logic yet
-        while let Some(v) = data_test.pop() {
-            data.push(v);
-        }
-        while let Some(v) = expect_test.pop() {
-            expect.push(v);
-        }
+        data_test.append(data);
+        *data = data_test;
+        expect_test.append(expect);
+        *expect = expect_test;
     }
     Some(correctness_sum as f64 / (count as f64))
 }

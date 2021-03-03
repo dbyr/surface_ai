@@ -6,8 +6,8 @@ use crate::classification::{
 };
 use crate::classifier::Classifier;
 use crate::test_methods::{
-    expect_success_rate
-    // stratified_testing
+    expect_success_rate,
+    cross_validation_testing
 };
 
 #[test]
@@ -33,6 +33,11 @@ fn test_linear_perceptron_learning() {
 
     p.train(&data, &expect);
     assert!(expect_success_rate(&p, &data, &expect, 0.92));
+
+    let mut p = Perceptron::new_linear(2);
+    let strat_result = cross_validation_testing(&mut p, &mut data, &mut expect, 0.9).unwrap();
+    println!("Achieved {} strat result", strat_result);
+    assert!(strat_result > 0.89);
 }
 
 #[test]
@@ -43,9 +48,6 @@ fn test_logistic_peceptron_learning() {
     let mut p = Perceptron::new_logistic(2);
 
     p.train(&data, &expect);
-    for datum in data.iter() {
-        println!("{:?}", p.classify(datum));
-    }
     println!("average certainty: {}", average_certainty(&mut data.iter().map(|x| p.classify(x))));
     assert!(expect_success_rate(&p, &data, &expect, 1f64));
     assert!(p.classify(&vec!(5.4, 5.0)).positive());
@@ -61,12 +63,13 @@ fn test_logistic_peceptron_learning() {
     let mut p = Perceptron::new_logistic(2);
 
     p.train(&data, &expect);
-    for datum in data.iter() {
-        println!("{:?}", p.classify(datum));
-    }
     println!("average certainty: {}", average_certainty(&mut data.iter().map(|x| p.classify(x))));
     assert!(expect_success_rate(&p, &data, &expect, 0.92));
-    // TODO: implement stratification and test via that
+
+    let mut p = Perceptron::new_linear(2);
+    let strat_result = cross_validation_testing(&mut p, &mut data, &mut expect, 0.9).unwrap();
+    println!("Achieved {} strat result", strat_result);
+    assert!(strat_result > 0.89);
 }
 
 
