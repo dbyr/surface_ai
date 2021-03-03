@@ -20,7 +20,10 @@ use helpers::{
     logistic_reweight
 };
 
-use crate::classifier::Classifier;
+use crate::classifier::{
+    Classifier,
+    Resettable
+};
 use crate::classification::Classification;
 
 const LEARNING_RATE_DECAY: f64 = 0.1;
@@ -66,7 +69,7 @@ impl Perceptron {
 
 impl Classifier<Vec<f64>, Classification> for Perceptron {
 
-    fn train(&mut self, data: &Vec<Vec<f64>>, expect: &Vec<Classification>) -> bool {
+    fn train(&mut self, data: &[Vec<f64>], expect: &[Classification]) -> bool {
         if data.len() != expect.len() {
             return false;
         }
@@ -93,6 +96,12 @@ impl Classifier<Vec<f64>, Classification> for Perceptron {
 
     fn classify(&self, datum: &Vec<f64>) -> Classification {
         self.neuron.classify(datum)
+    }
+}
+
+impl Resettable for Perceptron {
+    fn reset(&mut self) -> bool {
+        self.neuron.reset()
     }
 }
 

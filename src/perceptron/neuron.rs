@@ -9,6 +9,7 @@ use crate::classification::{
     Classification,
     Classification::Unclassifiable
 };
+use crate::classifier::Resettable;
 
 pub const LEARNING_RATE: f64 = 1f64;
 const INITIAL_WEIGHT_VAL: f64 = 0f64;
@@ -127,6 +128,17 @@ impl Neuron {
         } else {
             false
         }
+    }
+}
+
+impl Resettable for Neuron {
+    fn reset(&mut self) -> bool {
+        self.bias = INITIAL_WEIGHT_VAL;
+        self.learning_rate = LEARNING_RATE;
+        for weight in self.weights.iter_mut() {
+            *weight = INITIAL_WEIGHT_VAL;
+        }
+        true
     }
 }
 

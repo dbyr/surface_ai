@@ -86,7 +86,6 @@ pub fn logistic_reweight(
     for (i, weight) in weights.iter_mut().enumerate() {
         *weight += reweight_by * input[i];
     }
-    // *bias += linear_reweight_by(expected, actual, learning_rate);
     *bias += reweight_by;
 }
 
