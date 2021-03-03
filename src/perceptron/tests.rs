@@ -1,3 +1,7 @@
+use std::fs::File;
+use std::io::{BufRead, BufReader};
+use std::str::FromStr;
+
 use crate::perceptron::Perceptron;
 use crate::classification::{
     Classification,
@@ -9,6 +13,60 @@ use crate::test_methods::{
     expect_success_rate,
     cross_validation_testing
 };
+
+// dataset downloaded from:
+// https://archive.ics.uci.edu/ml/datasets/banknote+authentication
+const BANKNOTE_FILE: &str = "./data/data_banknote_authentication.txt";
+
+fn read_banknote_file() -> (Vec<Vec<f64>>, Vec<Classification>) {
+    let file = File::open(BANKNOTE_FILE).unwrap();
+    let reader = BufReader::new(file);
+    let mut traits = Vec::new();
+    let mut classes = Vec::new();
+    for l in reader.lines() {
+        let line = l.unwrap();
+        let parts: Vec<&str> = line.split(",").collect();
+        let mut attrs = Vec::new();
+        for i in 0..4 {
+            attrs.push(f64::from_str(parts[i]).unwrap());
+        }
+        if parts[4] == "0" {
+            classes.push(Negative(0f64));
+        } else {
+            classes.push(Positive(1f64));
+        }
+        traits.push(attrs);
+    }
+    (traits, classes)
+}
+
+#[test]
+fn test_linear_banknotes() {
+    let (mut data, mut expect) = read_banknote_file();
+
+    let mut p = Perceptron::new_linear(4);
+    p.train(&data, &expect);
+    assert!(expect_success_rate(&p, &data, &expect, 0.95));
+    println!("{:?}", p);
+
+    let strat_result = cross_validation_testing(&mut p, &mut data, &mut expect, 0.9).unwrap();
+    println!("Achieved {} strat result", strat_result);
+    assert!(strat_result > 0.95);
+}
+
+#[test]
+fn test_logistic_banknotes() {
+    let (mut data, mut expect) = read_banknote_file();
+
+    let mut p = Perceptron::new_logistic(4);
+    p.train(&data, &expect);
+    assert!(expect_success_rate(&p, &data, &expect, 0.95));
+    println!("{:?}", p);
+
+    let strat_result = cross_validation_testing(&mut p, &mut data, &mut expect, 0.9).unwrap();
+    println!("Achieved {} strat result", strat_result);
+    assert!(strat_result > 0.95);
+}
 
 #[test]
 fn test_linear_perceptron_learning() {
