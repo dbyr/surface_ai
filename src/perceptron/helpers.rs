@@ -4,8 +4,6 @@ use crate::classification::{
     Classification::{Positive, Negative}
 };
 
-const EQUAL_THRESHOLD: f64 = 0.0000000001;
-
 // activation function for classic perceptron
 pub fn linear_function(x: f64) -> Classification {
     if x > 0f64 {
@@ -19,9 +17,9 @@ pub fn linear_function(x: f64) -> Classification {
 pub fn logistic_function(x: f64) -> Classification {
     let result = 1f64 / (1f64 + E.powf(-x));
     if result > 0.5 {
-        Positive(result as f64)
+        Positive(result)
     } else {
-        Negative(result as f64)
+        Negative(result)
     }
 }
 
@@ -43,7 +41,18 @@ fn linear_reweight_by(
     reweight_by * learning_rate
 }
 
+// derivitive of the activation functions
+pub fn linear_derivitive(x: f64) -> f64 {
+    x
+}
+pub fn logistic_derivitive(x: f64) -> f64 {
+    let h_x = logistic_function(x).certainty();
+    h_x * (1f64 - h_x)
+}
+
 // reweight function for classic perceptron
+// returns the "modified error" vector of the
+// inputs
 pub fn linear_reweight(
     weights: &mut Vec<f64>,
     input: &Vec<f64>,
@@ -64,6 +73,8 @@ pub fn linear_reweight(
 }
 
 // reweight function for sigmoid-perceptrons
+// returns the "modified error" vector of the
+// inputs
 pub fn logistic_reweight(
     weights: &mut Vec<f64>,
     input: &Vec<f64>,
@@ -75,20 +86,20 @@ pub fn logistic_reweight(
 
     // get the linear values out of the classifications
     let actual_rate = actual.certainty() as f64;
-    if actual_rate < 0f64 { return; }
+    if actual_rate < 0f64 { return;}// Vec::new(); }
     let expected_rate = expected.certainty() as f64;
-    if expected_rate < 0f64 { return; }
+    if expected_rate < 0f64 { return;}// Vec::new(); }
+    let modified_error = expected_rate - actual_rate;
 
-    let reweight_by = learning_rate * (expected_rate - actual_rate)
-                    * actual_rate * (1f64 - actual_rate);
+    let reweight_by = learning_rate * modified_error
+                    * logistic_derivitive(actual_rate);
     
     // all weights get reweighted, including bias
+    // let mut errors = Vec::with_capacity(input.len());
     for (i, weight) in weights.iter_mut().enumerate() {
         *weight += reweight_by * input[i];
+        // errors.push(modified_error * logistic_derivitive(x: f64))
     }
     *bias += reweight_by;
-}
 
-pub fn reasonably_equal(left: &f64, right: &f64) -> bool {
-    (left - right).abs() < EQUAL_THRESHOLD
 }

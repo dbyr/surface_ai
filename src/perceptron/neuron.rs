@@ -3,28 +3,33 @@ use std::{
     fmt::Debug
 };
 
-use super::helpers::reasonably_equal;
+use super::helpers::{
+    logistic_function,
+    logistic_reweight,
+    linear_function,
+    linear_reweight
+};
 
 use crate::classification::{
     Classification,
     Classification::Unclassifiable
 };
 use crate::classifier::Resettable;
+use crate::common::reasonably_equal;
+
+use Type::{Linear, Logistic};
 
 pub const LEARNING_RATE: f64 = 1f64;
 const INITIAL_WEIGHT_VAL: f64 = 0f64;
 
+pub enum Type {
+    Logistic,
+    Linear
+}
+
 pub struct Neuron {
     weights: Vec<f64>,
-    act_func: Box<dyn Fn(f64) -> Classification>,
-    reweight_func: Box<dyn Fn(
-        &mut Vec<f64>,
-        &Vec<f64>,
-        &mut f64,
-        &f64,
-        &Classification,
-        &Classification
-    )>,
+    of_type: Type,
     bias: f64,
     learning_rate: f64
 }
@@ -32,20 +37,11 @@ pub struct Neuron {
 impl Neuron {
     pub fn new(
         size: usize,
-        activation_func: Box<dyn Fn(f64) -> Classification>,
-        reweight_func: Box<dyn Fn(
-            &mut Vec<f64>,
-            &Vec<f64>,
-            &mut f64,
-            &f64,
-            &Classification,
-            &Classification
-        )>
+        of_type: Type
     ) -> Self {
         Neuron {
             weights: vec!(INITIAL_WEIGHT_VAL; size),
-            act_func: activation_func,
-            reweight_func: reweight_func,
+            of_type: of_type,
             bias: INITIAL_WEIGHT_VAL,
             learning_rate: LEARNING_RATE
         }
@@ -58,8 +54,14 @@ impl Neuron {
     pub fn weights(&self) -> &Vec<f64> {
         &self.weights
     }
+    pub fn weights_mut(&mut self) -> &mut Vec<f64> {
+        &mut self.weights
+    }
     pub fn bias(&self) -> f64 {
         self.bias
+    }
+    pub fn of_type(&self) -> &Type {
+        &self.of_type
     }
 
     // compares the weights of the given values with
@@ -97,26 +99,35 @@ impl Neuron {
             );
         }
         let mut input = self.bias;
+        let act_func = match self.of_type {
+            Linear => linear_function,
+            Logistic => logistic_function
+        };
         for i in 0..inputs.len() {
             input += inputs[i] * self.weights[i];
         }
-        (self.act_func)(input)
+        act_func(input)
     }
 
     // pub fn batch_learn(&mut self, )
 
-    // returns true if the neuron learned
-    pub fn learn(&mut self, input: &Vec<f64>, expected: &Classification) -> bool {
+    // returns the error value
+    pub fn learn(&mut self, input: &Vec<f64>, expected: &Classification) -> f64 {
         let f_x = self.classify(input);
         if f_x.certainty() < 0f64 {
-            return false;
+            return 0f64;
         }
 
         // saves doing a O(input.len()) operation,
         // even though the weights wouldn't change
         // anyway if f_x == expected
+        // if !f_x.exact_match(expected) {
         if !f_x.class_match(expected) {
-            (self.reweight_func)(
+            let reweight_func = match self.of_type {
+                Linear => linear_reweight,
+                Logistic => logistic_reweight
+            };
+            reweight_func(
                 &mut self.weights,
                 input,
                 &mut self.bias,
@@ -124,9 +135,9 @@ impl Neuron {
                 expected,
                 &f_x
             );
-            true
+            expected.error(&f_x)
         } else {
-            false
+            0f64
         }
     }
 }

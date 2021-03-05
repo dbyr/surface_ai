@@ -1,8 +1,8 @@
 #[cfg(test)]
 mod tests;
 
-mod neuron;
-mod helpers;
+pub(crate) mod neuron;
+pub(crate) mod helpers;
 
 use std::{
     fmt,
@@ -11,13 +11,8 @@ use std::{
 
 use neuron::{
     Neuron,
+    Type::{Linear, Logistic},
     LEARNING_RATE
-};
-use helpers::{
-    linear_function,
-    linear_reweight,
-    logistic_function,
-    logistic_reweight
 };
 
 use crate::classifier::{
@@ -26,7 +21,7 @@ use crate::classifier::{
 };
 use crate::classification::Classification;
 
-const LEARNING_RATE_DECAY: f64 = 0.1;
+const LEARNING_RATE_DECAY: f64 = 0.9;
 
 // TODO: add extra options such as allowing
 // deteriorating learning rate, and batch
@@ -41,8 +36,7 @@ impl Perceptron {
         Perceptron {
             neuron: Neuron::new(
                 size,
-                Box::new(linear_function),
-                Box::new(linear_reweight)
+                Linear
             )
         }
     }
@@ -51,8 +45,7 @@ impl Perceptron {
         Perceptron {
             neuron: Neuron::new(
                 size,
-                Box::new(logistic_function),
-                Box::new(logistic_reweight)
+                Logistic
             )
         }
     }
@@ -61,8 +54,8 @@ impl Perceptron {
         self.neuron.input_size()
     }
 
-    // returns true if the perceptron learned something
-    pub fn stochastic_learn(&mut self, datum: &Vec<f64>, expected: &Classification) -> bool {
+    // returns the of the learning action
+    pub fn stochastic_learn(&mut self, datum: &Vec<f64>, expected: &Classification) -> f64 {
         self.neuron.learn(datum, expected)
     }
 }
@@ -85,7 +78,7 @@ impl Classifier<Vec<f64>, Classification> for Perceptron {
             if !self.neuron.weights_compare(&mut previous_w, &mut previous_b) {
                 break;
             }
-            learning_rate -= learning_rate * LEARNING_RATE_DECAY;
+            learning_rate *= LEARNING_RATE_DECAY;
             self.neuron.set_learning_rate(learning_rate);
             // iters.next();
         }

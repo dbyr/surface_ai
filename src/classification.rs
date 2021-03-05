@@ -1,4 +1,5 @@
 use self::Classification::{Positive, Negative, Unclassifiable};
+use crate::common::reasonably_equal;
 
 #[derive(Debug)]
 pub enum Classification {
@@ -28,6 +29,19 @@ impl Classification {
             Positive(_) => other.positive(),
             Negative(_) => other.negative(),
             _ => false
+        }
+    }
+    pub fn exact_match(&self, other: &Classification) -> bool {
+        reasonably_equal(&self.certainty(), &other.certainty())
+    }
+
+    pub fn error(&self, other: &Classification) -> f64 {
+        if let Unclassifiable(_) = self {
+            0f64
+        } else if let Unclassifiable(_) = other {
+            0f64
+        } else {
+            self.certainty() - other.certainty()
         }
     }
 
