@@ -13,31 +13,29 @@ use crate::test_methods::{
     expect_success_rate,
     cross_validation_testing
 };
+use crate::common::read_dataset_file;
 
 // dataset downloaded from:
 // https://archive.ics.uci.edu/ml/datasets/banknote+authentication
 const BANKNOTE_FILE: &str = "./data/data_banknote_authentication.txt";
 
-fn read_banknote_file() -> (Vec<Vec<f64>>, Vec<Classification>) {
-    let file = File::open(BANKNOTE_FILE).unwrap();
-    let reader = BufReader::new(file);
-    let mut traits = Vec::new();
-    let mut classes = Vec::new();
-    for l in reader.lines() {
-        let line = l.unwrap();
-        let parts: Vec<&str> = line.split(",").collect();
-        let mut attrs = Vec::new();
-        for i in 0..4 {
-            attrs.push(f64::from_str(parts[i]).unwrap());
-        }
-        if parts[4] == "0" {
-            classes.push(Negative(0f64));
-        } else {
-            classes.push(Positive(1f64));
-        }
-        traits.push(attrs);
+fn banknote_from_line(line: String) -> (Vec<f64>, Classification) {
+    let parts: Vec<&str> = line.split(",").collect();
+    let mut attrs = Vec::new();
+    for i in 0..4 {
+        attrs.push(f64::from_str(parts[i]).unwrap());
     }
-    (traits, classes)
+    let out = if parts[4] == "0" {
+        Negative(0f64)
+    } else {
+        Positive(1f64)
+    };
+    (attrs, out)
+}
+
+#[inline]
+fn read_banknote_file() -> (Vec<Vec<f64>>, Vec<Classification>) {
+    read_dataset_file(BANKNOTE_FILE, &banknote_from_line, false)
 }
 
 #[test]
@@ -46,10 +44,10 @@ fn test_linear_banknotes() {
 
     let mut p = Perceptron::new_linear(4);
     p.train(&data, &expect);
-    assert!(expect_success_rate(&p, &data, &expect, 0.95));
+    assert!(expect_success_rate(&p, &data, &expect, 0.95, &|l, r| *l == *r));
     println!("{:?}", p);
 
-    let strat_result = cross_validation_testing(&mut p, &mut data, &mut expect, 0.9).unwrap();
+    let strat_result = cross_validation_testing(&mut p, &mut data, &mut expect, 0.9, &|l, r| *l == *r).unwrap();
     println!("Achieved {} strat result", strat_result);
     assert!(strat_result > 0.95);
 }
@@ -60,10 +58,10 @@ fn test_logistic_banknotes() {
 
     let mut p = Perceptron::new_logistic(4);
     p.train(&data, &expect);
-    assert!(expect_success_rate(&p, &data, &expect, 0.95));
+    assert!(expect_success_rate(&p, &data, &expect, 0.95, &|l, r| *l == *r));
     println!("{:?}", p);
 
-    let strat_result = cross_validation_testing(&mut p, &mut data, &mut expect, 0.9).unwrap();
+    let strat_result = cross_validation_testing(&mut p, &mut data, &mut expect, 0.9, &|l, r| *l == *r).unwrap();
     println!("Achieved {} strat result", strat_result);
     assert!(strat_result > 0.95);
 }
@@ -77,7 +75,7 @@ fn test_linear_perceptron_learning() {
     let mut p = Perceptron::new_linear(2);
 
     p.train(&data, &expect);
-    assert!(expect_success_rate(&p, &data, &expect, 1.0));
+    assert!(expect_success_rate(&p, &data, &expect, 1.0, &|l, r| *l == *r));
     assert!(p.classify(&vec!(5.4, 5.0)).positive());
     assert!(p.classify(&vec!(7.0, 7.5)).positive());
     assert!(p.classify(&vec!(4.5, 3.8)).positive());
@@ -90,10 +88,10 @@ fn test_linear_perceptron_learning() {
     let mut p = Perceptron::new_linear(2);
 
     p.train(&data, &expect);
-    assert!(expect_success_rate(&p, &data, &expect, 0.92));
+    assert!(expect_success_rate(&p, &data, &expect, 0.92, &|l, r| *l == *r));
 
     let mut p = Perceptron::new_linear(2);
-    let strat_result = cross_validation_testing(&mut p, &mut data, &mut expect, 0.9).unwrap();
+    let strat_result = cross_validation_testing(&mut p, &mut data, &mut expect, 0.9, &|l, r| *l == *r).unwrap();
     println!("Achieved {} strat result", strat_result);
     assert!(strat_result > 0.89);
 }
@@ -107,7 +105,7 @@ fn test_logistic_peceptron_learning() {
 
     p.train(&data, &expect);
     println!("average certainty: {}", average_certainty(&mut data.iter().map(|x| p.classify(x))));
-    assert!(expect_success_rate(&p, &data, &expect, 1f64));
+    assert!(expect_success_rate(&p, &data, &expect, 1f64, &|l, r| *l == *r));
     assert!(p.classify(&vec!(5.4, 5.0)).positive());
     assert!(p.classify(&vec!(7.0, 7.5)).positive());
     assert!(p.classify(&vec!(4.5, 3.8)).positive());
@@ -122,10 +120,10 @@ fn test_logistic_peceptron_learning() {
 
     p.train(&data, &expect);
     println!("average certainty: {}", average_certainty(&mut data.iter().map(|x| p.classify(x))));
-    assert!(expect_success_rate(&p, &data, &expect, 0.92));
+    assert!(expect_success_rate(&p, &data, &expect, 0.92, &|l, r| *l == *r));
 
     let mut p = Perceptron::new_linear(2);
-    let strat_result = cross_validation_testing(&mut p, &mut data, &mut expect, 0.9).unwrap();
+    let strat_result = cross_validation_testing(&mut p, &mut data, &mut expect, 0.9, &|l, r| *l == *r).unwrap();
     println!("Achieved {} strat result", strat_result);
     assert!(strat_result > 0.89);
 }

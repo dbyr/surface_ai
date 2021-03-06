@@ -1,9 +1,15 @@
+#[cfg(test)]
+mod tests;
+
 use crate::perceptron::neuron::{
     Neuron,
     Type::{Logistic, Linear},
     LEARNING_RATE
 };
-use crate::classifier::Classifier;
+use crate::classifier::{
+    Classifier,
+    Resettable
+};
 use crate::perceptron::helpers::{
     logistic_derivitive,
     linear_derivitive
@@ -32,7 +38,7 @@ impl Layer {
         if input.len() != self.neurons[0].input_size() {return None;}
         let mut output = Vec::with_capacity(self.neurons.len());
 
-        for i in 0..self.last_output.len() {
+        for i in 0..self.neurons.len() {
             output[i] = self.neurons[i].classify(&input).certainty();
         }
         Some(output)
@@ -48,24 +54,12 @@ impl Layer {
         self.neurons.len()
     }
 
-    // pub fn error(&self, expect: &Vec<f64>) -> Option<f64> {
-    //     if self.last_output.len() != expect.len() {return None;}
-
-    //     let mut total_err = 0f64;
-    //     for i in 0..expect.len() {
-    //         total_err += (expect[i] - self.last_output[i]).powi(2);
-    //     }
-    //     Some(total_err / 2f64)
-    // }
-
-    // returns the "delta k" to use for the next layer
-    // (that is, the layer that feeds into this one)
-    pub fn back_propogate(&mut self) {
+    pub fn reset(&mut self) -> bool {
+        let mut did_reset = true;
         for neuron in self.neurons.iter_mut() {
-            for weight in neuron.weights_mut().iter_mut() {
-
-            }
+            did_reset &= neuron.reset();
         }
+        did_reset
     }
 }
 
@@ -73,6 +67,8 @@ pub struct NeuralNet {
     layers: Vec<Layer>
 }
 
+// used for the "new" operator which defaults to using
+// a single hidden layer
 #[inline]
 fn hidden_layer_size(inputs: usize, outputs: usize) -> usize {
     ((inputs + outputs) as f64 * 1.7) as usize
@@ -116,36 +112,38 @@ impl NeuralNet {
 
     pub fn learn(&mut self, input: &Vec<f64>, expect: &Vec<f64>) -> Option<()> {
         // feed the input through
+        // TODO: find a better way to get the type
         let derivitive = match self.layers[0].neurons[0].of_type() {
             Logistic => logistic_derivitive,
             Linear => linear_derivitive
         };
         let output = self.classify_for_training(input)?;
         let errorv = error(expect, output)?;
-        let output_layer_i = self.layers.len() - 1;
-        let output_layer = self.layers.get(output_layer_i).unwrap();
-        let mut delta_i: Vec<f64> = errorv
-            .into_iter().enumerate()
+        let output_layer = self.layers.get(self.layers.len() - 1).unwrap();
+        let mut delta_i: Vec<f64> = errorv.into_iter().enumerate()
             .map(|(i, v)| v * derivitive(output_layer.last_input[i]))
             .collect();
         let mut next_delta_i: Vec<f64>;
 
         // back propagate the error
-        for i in (1..self.layers.len()).rev() {
+        for i in (0..self.layers.len()).rev() {
 
             // get the delta for the next layer ready
-            let this_layer = &self.layers[i].neurons;
-            let next_layer = &self.layers[i - 1];
-            next_delta_i = (0..next_layer.len())
-                .map(|j| derivitive(next_layer.last_input[j])).enumerate()
-                .map(
-                    |(j, g_j)| 
-                        g_j * (0..this_layer.len())
-                        .map(|k| this_layer[k].weights()[j]).sum::<f64>()
-                ).collect();
+            next_delta_i = if i != 0 {
+                let this_layer = &self.layers[i].neurons;
+                let next_layer = &self.layers[i - 1];
+                (0..next_layer.len())
+                    .map(|j| derivitive(next_layer.last_input[j])).enumerate()
+                    .map(
+                        |(j, g_j)| 
+                            g_j * (0..this_layer.len())
+                            .map(|k| this_layer[k].weights()[j]).sum::<f64>()
+                    ).collect()
+            } else {
+                vec!()
+            };
             
             // update the weights for the current layer
-            // let last_input = &self.layers[i].last_input;
             let this_layer = &mut self.layers[i];
             for (k, neuron) in this_layer.neurons.iter_mut().enumerate() {
                 for (i, weight) in neuron.weights_mut().iter_mut().enumerate() {
@@ -160,7 +158,10 @@ impl NeuralNet {
 
 impl Classifier<Vec<f64>, Vec<f64>> for NeuralNet {
     fn train(&mut self, data: &[Vec<f64>], expect: &[Vec<f64>]) -> bool {
-        false
+        for (datum, expected) in data.iter().zip(expect.iter()) {
+            self.learn(datum, expected);
+        }
+        true
     }
 
     // TODO: do proper error handling
@@ -176,5 +177,15 @@ impl Classifier<Vec<f64>, Vec<f64>> for NeuralNet {
             Some(v) => v,
             None => vec!()
         }
+    }
+}
+
+impl Resettable for NeuralNet {
+    fn reset(&mut self) -> bool {
+        let mut did_reset = true;
+        for layer in self.layers.iter_mut() {
+            did_reset &= layer.reset();
+        }
+        did_reset
     }
 }

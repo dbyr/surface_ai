@@ -23,9 +23,10 @@ pub fn cross_validation_testing<M, T, C>(
     classifier: &mut M,
     data: &mut Vec<T>,
     expect: &mut Vec<C>,
-    train_on_portion: f64
+    train_on_portion: f64,
+    are_equal: &dyn Fn(&C, &C) -> bool
 ) -> Option<f64>
-where M: Classifier<T, C> + Resettable, C: Eq, T: std::fmt::Debug {
+where M: Classifier<T, C> + Resettable, T: std::fmt::Debug {
     if data.len() != expect.len() { return None; }
     if train_on_portion <= 0f64 || train_on_portion >= 1f64 { return None; }
     shuffle_class_data(data, expect);
@@ -52,7 +53,7 @@ where M: Classifier<T, C> + Resettable, C: Eq, T: std::fmt::Debug {
 
         // train and test
         classifier.train(data, expect);
-        correctness_sum += sum_successes(classifier, &data_test, &expect_test)?;
+        correctness_sum += sum_successes(classifier, &data_test, &expect_test, are_equal)?;
         count += data_test.len();
         classifier.reset();
         
@@ -68,16 +69,17 @@ where M: Classifier<T, C> + Resettable, C: Eq, T: std::fmt::Debug {
     Some(correctness_sum as f64 / (count as f64))
 }
 
-fn sum_successes<T, C: Eq>(
+fn sum_successes<T, C>(
     classifier: &dyn Classifier<T, C>,
     data: &[T],
-    expect: &[C]
+    expect: &[C],
+    are_equal: &dyn Fn(&C, &C) -> bool
 ) -> Option<usize> {
     if data.len() != expect.len() { return None; }
 
     let mut correct = 0;
     for (datum, expected) in data.iter().zip(expect.iter()) {
-        if classifier.classify(datum) == *expected {
+        if are_equal(&classifier.classify(datum), expected) {
             correct += 1;
         }
     }
@@ -88,15 +90,16 @@ fn sum_successes<T, C: Eq>(
 // success rate was achieved
 // success_rate is a number between
 // 0 and 1 representing a percentage
-pub fn expect_success_rate<T, C: Eq>(
+pub fn expect_success_rate<T, C>(
     classifier: &dyn Classifier<T, C>,
     data: &Vec<T>,
     expect: &Vec<C>,
-    expect_rate: f64
+    expect_rate: f64,
+    are_equal: &dyn Fn(&C, &C) -> bool
 ) -> bool {
     if data.len() != expect.len() { return false; }
 
-    let actual_rate = sum_successes(classifier, data, expect).unwrap() as f64 / (data.len() as f64);
+    let actual_rate = sum_successes(classifier, data, expect, are_equal).unwrap() as f64 / (data.len() as f64);
     println!("achieved {}, expected {}", actual_rate, expect_rate);
     actual_rate >= expect_rate
 }
