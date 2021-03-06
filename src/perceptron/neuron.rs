@@ -109,6 +109,14 @@ impl Neuron {
         act_func(input)
     }
 
+    pub fn activate(&self, input: f64) -> Classification {
+        let act_func = match self.of_type {
+            Linear => linear_function,
+            Logistic => logistic_function
+        };
+        act_func(input)
+    }
+
     // pub fn batch_learn(&mut self, )
 
     // returns the error value

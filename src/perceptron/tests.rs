@@ -1,5 +1,3 @@
-use std::fs::File;
-use std::io::{BufRead, BufReader};
 use std::str::FromStr;
 
 use crate::perceptron::Perceptron;

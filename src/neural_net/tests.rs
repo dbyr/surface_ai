@@ -1,9 +1,6 @@
 use std::str::FromStr;
 
-use crate::common::{
-    read_dataset_file,
-    reasonably_equal
-};
+use crate::common::read_dataset_file;
 use crate::neural_net::NeuralNet;
 use crate::classifier::Classifier;
 use crate::test_methods::cross_validation_testing;
@@ -133,7 +130,7 @@ fn read_star_information(line: String) -> (Vec<f64>, Vec<f64>) {
     for i in 0..4 {
         attrs.push(f64::from_str(parts[i]).unwrap());
     }
-    let out = Vec::<f64>::from(StarCat::from(u32::from_str(parts[5]).unwrap()));
+    let out = Vec::<f64>::from(StarCat::from(u32::from_str(parts[4]).unwrap()));
     (attrs, out)
 }
 
@@ -146,7 +143,9 @@ fn read_star_file() -> (Vec<Vec<f64>>, Vec<Vec<f64>>) {
 fn test_star_classification() {
     let (mut data, mut expect) = read_star_file();
     let mut nn = NeuralNet::new(4, 3);
+    println!("before: {:#?}", nn);
     nn.train(&data, &expect);
+    println!("after: {:#?}", nn);
 
     let strat_result = cross_validation_testing(&mut nn, &mut data, &mut expect, 0.9, &|l, r| StarCat::from(l) == StarCat::from(r)).unwrap();
     println!("Achieved {} strat result", strat_result);
