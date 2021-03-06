@@ -121,11 +121,12 @@ impl NeuralNet {
             Linear => linear_derivitive
         };
         let output = self.classify_for_training(input)?;
+        let errorv = error(expect, output)?;
         let output_layer_i = self.layers.len() - 1;
-        let output_layer = self.layers.get(output_layer_i)?;
-        let mut delta_i: Vec<f64> = error(expect, output)?
+        let output_layer = self.layers.get(output_layer_i).unwrap();
+        let mut delta_i: Vec<f64> = errorv
             .into_iter().enumerate()
-            .map(move |(i, v)| v * derivitive(output_layer.last_input[i]))
+            .map(|(i, v)| v * derivitive(output_layer.last_input[i]))
             .collect();
         let mut next_delta_i: Vec<f64>;
 
@@ -133,8 +134,8 @@ impl NeuralNet {
         for i in (1..self.layers.len()).rev() {
 
             // get the delta for the next layer ready
-            let mut this_layer = self.layers[i].neurons;
-            let next_layer = self.layers[i - 1];
+            let this_layer = &self.layers[i].neurons;
+            let next_layer = &self.layers[i - 1];
             next_delta_i = (0..next_layer.len())
                 .map(|j| derivitive(next_layer.last_input[j])).enumerate()
                 .map(
@@ -144,10 +145,11 @@ impl NeuralNet {
                 ).collect();
             
             // update the weights for the current layer
-            let last_input = self.layers[i].last_input;
-            for (k, neuron) in this_layer.iter_mut().enumerate() {
+            // let last_input = &self.layers[i].last_input;
+            let this_layer = &mut self.layers[i];
+            for (k, neuron) in this_layer.neurons.iter_mut().enumerate() {
                 for (i, weight) in neuron.weights_mut().iter_mut().enumerate() {
-                    *weight += LEARNING_RATE * last_input[i] * delta_i[k];
+                    *weight += LEARNING_RATE * this_layer.last_input[i] * delta_i[k];
                 }
             }
             delta_i = next_delta_i;
