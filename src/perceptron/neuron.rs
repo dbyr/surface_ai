@@ -2,6 +2,7 @@ use std::{
     fmt,
     fmt::Debug
 };
+use rand::Rng;
 
 use super::helpers::{
     logistic_function,
@@ -21,6 +22,7 @@ use Type::{Linear, Logistic};
 
 pub const LEARNING_RATE: f64 = 1f64;
 const INITIAL_WEIGHT_VAL: f64 = 0f64;
+const INITIAL_WEIGHT_RANGE: f64 = 1f64;
 
 pub enum Type {
     Logistic,
@@ -39,10 +41,13 @@ impl Neuron {
         size: usize,
         of_type: Type
     ) -> Self {
+        let mut rng = rand::thread_rng();
         Neuron {
-            weights: vec!(INITIAL_WEIGHT_VAL; size),
+            weights: vec!(INITIAL_WEIGHT_VAL; size).into_iter()
+                .map(|_| rng.gen_range(-INITIAL_WEIGHT_RANGE..INITIAL_WEIGHT_RANGE))
+                .collect(),
             of_type: of_type,
-            bias: INITIAL_WEIGHT_VAL,
+            bias: rng.gen_range(-INITIAL_WEIGHT_RANGE..INITIAL_WEIGHT_RANGE),
             learning_rate: LEARNING_RATE
         }
     }
@@ -59,6 +64,9 @@ impl Neuron {
     }
     pub fn bias(&self) -> f64 {
         self.bias
+    }
+    pub fn bias_mut(&mut self) -> &mut f64 {
+        &mut self.bias
     }
     pub fn of_type(&self) -> &Type {
         &self.of_type

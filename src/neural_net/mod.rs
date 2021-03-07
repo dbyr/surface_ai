@@ -24,6 +24,9 @@ struct Layer {
     last_output: Vec<f64>
 }
 
+const MIN_LEARNING_RATE: f64 = 0.0001;
+const LEARNING_RATE_DESCENT_RATE: f64 = 0.9;
+
 impl Layer {
     pub fn new(inputs: usize, outputs: usize) -> Layer {
         let mut p = Vec::with_capacity(outputs);
@@ -94,7 +97,9 @@ impl Debug for Layer {
 }
 
 pub struct NeuralNet {
-    layers: Vec<Layer>
+    layers: Vec<Layer>,
+    learning_rate: f64,
+    input_normalise_factor: Vec<i8>
 }
 
 // used for the "new" operator which defaults to using
@@ -121,7 +126,9 @@ impl NeuralNet {
         l.push(Layer::new(inputs, hiddens)); // hidden layer
         l.push(Layer::new(hiddens, outputs)); // output layer
         NeuralNet {
-            layers: l
+            layers: l,
+            learning_rate: LEARNING_RATE,
+            input_normalise_factor: vec!(0; inputs)
         }
     }
 
@@ -161,6 +168,7 @@ impl NeuralNet {
             next_delta_i = if i != 0 {
                 let this_layer = &self.layers[i];
                 let next_layer = &self.layers[i - 1];
+
                 (0..next_layer.len())
                     .map(|j| derivitive(next_layer.act_input[j])).enumerate()
                     .map(
@@ -178,18 +186,54 @@ impl NeuralNet {
                 for (j, weight) in neuron.weights_mut().iter_mut().enumerate() {
                     *weight += LEARNING_RATE * this_layer.last_input[j] * delta_i[k];
                 }
+                *neuron.bias_mut() += LEARNING_RATE * delta_i[k];
             }
             delta_i = next_delta_i;
         }
         Some(())
     }
+
+    fn set_learning_rate(&mut self, learning_rate: f64) {
+        for layer in self.layers.iter_mut() {
+            for neuron in layer.neurons.iter_mut() {
+                neuron.set_learning_rate(learning_rate);
+            }
+        }
+    }
+
+    // assumes all given data has the same length
+    fn set_normalise_factor(&mut self, data: &[Vec<f64>]) -> Option<()> {
+        let mut factors = vec!(0i8; data.get(0)?.len());
+        for datum in data.iter() {
+            for (f, attr) in datum.iter().enumerate() {
+                while (*attr * 10f64.powi(factors[f] as i32)).abs() > 1f64 {
+                    factors[f] -= 1;
+                }
+            }
+        }
+        self.input_normalise_factor = factors;
+        Some(())
+    }
 }
 
+// TODO: extend this to support any datatype that supports Into<Vec<f64>>
 impl Classifier<Vec<f64>, Vec<f64>> for NeuralNet {
     fn train(&mut self, data: &[Vec<f64>], expect: &[Vec<f64>]) -> bool {
-        for (datum, expected) in data.iter().zip(expect.iter()) {
-            self.learn(datum, expected);
+        if self.set_normalise_factor(data).is_none() {
+            return false;
         }
+        let mut datum = vec!(0f64; data.get(0).unwrap().len());
+        while self.learning_rate > MIN_LEARNING_RATE {
+            for (datum_raw, expected) in data.iter().zip(expect.iter()) {
+                for (i, attr) in datum_raw.iter().enumerate() {
+                    datum[i] = attr * 10f64.powi(self.input_normalise_factor[i] as i32);
+                }
+                self.learn(&datum, expected);
+            }
+            self.learning_rate *= LEARNING_RATE_DESCENT_RATE;
+            self.set_learning_rate(self.learning_rate);
+        }
+        self.learning_rate = LEARNING_RATE;
         true
     }
 
