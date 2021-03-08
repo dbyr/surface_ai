@@ -136,6 +136,8 @@ macro_rules! neural_net {
 }
 
 impl NeuralNet {
+    /// Returns a NeuralNet with `inputs` number of inputs,
+    /// and `outputs` number of outputs (as f64).
     pub fn new(inputs: usize, outputs: usize) -> NeuralNet {
         let hiddens = hidden_layer_size(inputs, outputs);
         let mut l = Vec::with_capacity(2);
@@ -148,6 +150,10 @@ impl NeuralNet {
         }
     }
 
+    /// Returns a NeuralNet with `inputs` number of inputs,
+    /// `outputs` number of outputs (as f64), and `hiddens.len()`
+    /// number of hidden layers, where the ith layer contains
+    /// hiddens\[i\] neurons.
     pub fn new_custom(inputs: usize, outputs: usize, hiddens: Vec<usize>) -> NeuralNet {
         let length = hiddens.len();
         if length == 0 {
