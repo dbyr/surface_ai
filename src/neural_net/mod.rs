@@ -119,6 +119,18 @@ fn error(expect: &Vec<f64>, actual: &Vec<f64>) -> Option<Vec<f64>> {
     Some(error)
 }
 
+// constructs a custom neural net with hidden layers of
+// the provided size in the patter 
+// neural_net!((4; 3), 2, 5)
+// which creates a neural net with 4 inputs, 3 outputs,
+// the first hidden layer has 2 neurons, and the second 5
+#[macro_export]
+macro_rules! neural_net {
+    (($i:expr; $o:expr) $(, $h:expr )*) => {
+        return NeuralNet::new_custom($i, $o, vec!($($h,)*));
+    };
+}
+
 impl NeuralNet {
     pub fn new(inputs: usize, outputs: usize) -> NeuralNet {
         let hiddens = hidden_layer_size(inputs, outputs);
@@ -130,6 +142,23 @@ impl NeuralNet {
             learning_rate: LEARNING_RATE,
             input_normalise_factor: vec!(0; inputs)
         }
+    }
+
+    pub fn new_custom(inputs: usize, outputs: usize, hiddens: Vec<usize>) -> NeuralNet {
+        let length = hiddens.len();
+        if length == 0 {
+            return NeuralNet::new(inputs, outputs);
+        }
+        let mut neurons = vec!();
+        for i in 0..(length - 1) {
+            neurons.push(Layer::new(hiddens[i], hiddens[i+1]));
+        }
+        neurons.push(Layer::new(hiddens[length-1], outputs));
+        return NeuralNet {
+            layers: neurons,
+            learning_rate: LEARNING_RATE,
+            input_normalise_factor: vec!(0; inputs)
+        };
     }
 
     pub fn classify_for_training(&mut self, datum: &Vec<f64>) -> Option<&Vec<f64>> {
@@ -269,4 +298,61 @@ impl Debug for NeuralNet {
          .field("layers", &self.layers)
          .finish()
     }
+}
+
+// example from https://mattmazur.com/2015/03/17/a-step-by-step-backpropagation-example/
+#[test]
+fn test_learn_function() {
+    use crate::compare_floats;
+    use crate::common::within_difference;
+
+    let mut l = Vec::with_capacity(2);
+    l.push(Layer::new(2, 2));
+    l.push(Layer::new(2, 2));
+
+    // setup the starting conditions
+    let l00 = l.get_mut(0).unwrap().neurons[0].weights_mut();
+    l00[0] = 0.15;
+    l00[1] = 0.2;
+    let l01 = l.get_mut(0).unwrap().neurons[1].weights_mut();
+    l01[0] = 0.25;
+    l01[1] = 0.3;
+    let l10 = l.get_mut(1).unwrap().neurons[0].weights_mut();
+    l10[0] = 0.4;
+    l10[1] = 0.45;
+    let l11 = l.get_mut(1).unwrap().neurons[1].weights_mut();
+    l11[0] = 0.5;
+    l11[1] = 0.55;
+    *l.get_mut(0).unwrap().neurons[0].bias_mut() = 0.35;
+    *l.get_mut(0).unwrap().neurons[1].bias_mut() = 0.35;
+    *l.get_mut(1).unwrap().neurons[0].bias_mut() = 0.6;
+    *l.get_mut(1).unwrap().neurons[1].bias_mut() = 0.6;
+
+    let mut nn = NeuralNet {
+        layers: l,
+        learning_rate: 0.5,
+        input_normalise_factor: vec!(0, 0)
+    };
+
+    // test the forward pass
+    let input = vec!(0.05, 0.1);
+    let expect = vec!(0.01, 0.99);
+    let actual = nn.classify(&input);
+    compare_floats!(&actual[0], &0.75136, &0.00001);
+    compare_floats!(&actual[1], &0.77292, &0.00001);
+
+    // test the back propagation
+    nn.learn(&input, &expect);
+    let l10 = (&nn.layers).get(1).unwrap().neurons[0].weights();
+    compare_floats!(&l10[0], &0.35891648, &0.00000001);
+    compare_floats!(&l10[1], &0.408666186, &0.000000001);
+    let l11 = (&nn.layers).get(1).unwrap().neurons[1].weights();
+    compare_floats!(&l11[0], &0.511301270, &0.000000001);
+    compare_floats!(&l11[1], &0.561370121, &0.000000001);
+    let l00 = (&nn.layers).get(0).unwrap().neurons[0].weights();
+    compare_floats!(&l00[0], &0.149780716, &0.000000001);
+    compare_floats!(&l00[1], &0.19956143, &0.00000001);
+    let l01 = (&nn.layers).get(0).unwrap().neurons[1].weights();
+    compare_floats!(&l01[0], &0.24975114, &0.00000001);
+    compare_floats!(&l01[1], &0.29950229, &0.00000001);
 }

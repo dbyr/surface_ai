@@ -10,6 +10,11 @@ pub fn reasonably_equal(left: &f64, right: &f64) -> bool {
     (left - right).abs() < EQUAL_THRESHOLD
 }
 
+#[inline]
+pub fn within_difference(left: &f64, right: &f64, diff: &f64) -> bool {
+    (left - right).abs() < *diff
+}
+
 #[cfg(test)]
 pub fn read_dataset_file<I, O>(
     filename: &str,

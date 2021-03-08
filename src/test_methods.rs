@@ -103,3 +103,20 @@ pub fn expect_success_rate<T, C>(
     println!("achieved {}, expected {}", actual_rate, expect_rate);
     actual_rate >= expect_rate
 }
+
+#[macro_export]
+macro_rules! compare_floats {
+    ($l:expr, $r:expr) => {
+        if !reasonably_equal($l, $r) {
+            println!("Left: {}, Right: {}", $l, $r);
+        }
+        assert!(reasonably_equal($l, $r));
+    };
+
+    ($l:expr, $r:expr, $d:expr) => {
+        if !within_difference($l, $r, $d) {
+            println!("Left: {}, Right: {}", $l, $r);
+        }
+        assert!(within_difference($l, $r, $d));
+    };
+}
