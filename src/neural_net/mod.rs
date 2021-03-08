@@ -214,9 +214,9 @@ impl NeuralNet {
             let this_layer = &mut self.layers[i];
             for (k, neuron) in this_layer.neurons.iter_mut().enumerate() {
                 for (j, weight) in neuron.weights_mut().iter_mut().enumerate() {
-                    *weight += LEARNING_RATE * this_layer.last_input[j] * delta_i[k];
+                    *weight += self.learning_rate * this_layer.last_input[j] * delta_i[k];
                 }
-                *neuron.bias_mut() += LEARNING_RATE * delta_i[k];
+                *neuron.bias_mut() += self.learning_rate * delta_i[k];
             }
             delta_i = next_delta_i;
         }
@@ -224,11 +224,7 @@ impl NeuralNet {
     }
 
     fn set_learning_rate(&mut self, learning_rate: f64) {
-        for layer in self.layers.iter_mut() {
-            for neuron in layer.neurons.iter_mut() {
-                neuron.set_learning_rate(learning_rate);
-            }
-        }
+        self.learning_rate = learning_rate;
     }
 
     // assumes all given data has the same length
