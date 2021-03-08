@@ -33,7 +33,10 @@ fn banknote_from_line(line: String) -> (Vec<f64>, Classification) {
 
 #[inline]
 fn read_banknote_file() -> (Vec<Vec<f64>>, Vec<Classification>) {
-    read_dataset_file(BANKNOTE_FILE, &banknote_from_line, false)
+    match read_dataset_file(BANKNOTE_FILE, &banknote_from_line, false) {
+        Some(v) => v,
+        None => panic!("Test file '{}' not found", BANKNOTE_FILE)
+    }
 }
 
 #[test]

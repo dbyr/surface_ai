@@ -139,7 +139,10 @@ fn read_star_information(line: String) -> (Vec<f64>, Vec<f64>) {
 
 #[inline]
 fn read_star_file() -> (Vec<Vec<f64>>, Vec<Vec<f64>>) {
-    read_dataset_file(STAR_FILE, &read_star_information, true)
+    match read_dataset_file(STAR_FILE, &read_star_information, true) {
+        Some(v) => v,
+        None => panic!("Test file '{}' not found", STAR_FILE)
+    }
 }
 
 #[test]

@@ -20,8 +20,11 @@ pub fn read_dataset_file<I, O>(
     filename: &str,
     read_line: &dyn Fn(String) -> (I, O),
     skip_first: bool
-) -> (Vec<I>, Vec<O>) {
-    let file = File::open(filename).unwrap();
+) -> Option<(Vec<I>, Vec<O>)> {
+    let file = match File::open(filename) {
+        Ok(f) => f,
+        Err(_) => return None
+    };
     let reader = BufReader::new(file);
     let mut inputs = Vec::new();
     let mut outputs = Vec::new();
@@ -33,5 +36,5 @@ pub fn read_dataset_file<I, O>(
         inputs.push(i);
         outputs.push(o);
     }
-    (inputs, outputs)
+    Some((inputs, outputs))
 }
