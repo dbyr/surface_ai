@@ -150,6 +150,7 @@ impl NeuralNet {
             return NeuralNet::new(inputs, outputs);
         }
         let mut neurons = vec!();
+        neurons.push(Layer::new(inputs, hiddens[0]));
         for i in 0..(length - 1) {
             neurons.push(Layer::new(hiddens[i], hiddens[i+1]));
         }
@@ -243,6 +244,26 @@ impl NeuralNet {
         self.input_normalise_factor = factors;
         Some(())
     }
+
+    #[cfg(test)]
+    pub fn get_weight(&self, layer: usize, neuron: usize, weight: usize) -> &f64 {
+        &self.layers[layer].neurons[neuron].weights()[weight]
+    }
+
+    #[cfg(test)]
+    pub fn get_weight_mut(&mut self, layer: usize, neuron: usize, weight: usize) -> &mut f64 {
+        &mut self.layers[layer].neurons[neuron].weights_mut()[weight]
+    }
+
+    #[cfg(test)]
+    pub fn get_bias(&self, layer: usize, neuron: usize) -> f64 {
+        self.layers[layer].neurons[neuron].bias()
+    }
+
+    #[cfg(test)]
+    pub fn get_bias_mut(&mut self, layer: usize, neuron: usize) -> &mut f64 {
+        self.layers[layer].neurons[neuron].bias_mut()
+    }
 }
 
 // TODO: extend this to support any datatype that supports Into<Vec<f64>>
@@ -311,28 +332,20 @@ fn test_learn_function() {
     l.push(Layer::new(2, 2));
 
     // setup the starting conditions
-    let l00 = l.get_mut(0).unwrap().neurons[0].weights_mut();
-    l00[0] = 0.15;
-    l00[1] = 0.2;
-    let l01 = l.get_mut(0).unwrap().neurons[1].weights_mut();
-    l01[0] = 0.25;
-    l01[1] = 0.3;
-    let l10 = l.get_mut(1).unwrap().neurons[0].weights_mut();
-    l10[0] = 0.4;
-    l10[1] = 0.45;
-    let l11 = l.get_mut(1).unwrap().neurons[1].weights_mut();
-    l11[0] = 0.5;
-    l11[1] = 0.55;
-    *l.get_mut(0).unwrap().neurons[0].bias_mut() = 0.35;
-    *l.get_mut(0).unwrap().neurons[1].bias_mut() = 0.35;
-    *l.get_mut(1).unwrap().neurons[0].bias_mut() = 0.6;
-    *l.get_mut(1).unwrap().neurons[1].bias_mut() = 0.6;
-
-    let mut nn = NeuralNet {
-        layers: l,
-        learning_rate: 0.5,
-        input_normalise_factor: vec!(0, 0)
-    };
+    let mut nn = NeuralNet::new_custom(2, 2, vec!(2));
+    *nn.get_weight_mut(0, 0, 0) = 0.15;
+    *nn.get_weight_mut(0, 0, 1) = 0.2;
+    *nn.get_weight_mut(0, 1, 0) = 0.25;
+    *nn.get_weight_mut(0, 1, 1) = 0.3;
+    *nn.get_weight_mut(1, 0, 0) = 0.4;
+    *nn.get_weight_mut(1, 0, 1) = 0.45;
+    *nn.get_weight_mut(1, 1, 0) = 0.5;
+    *nn.get_weight_mut(1, 1, 1) = 0.55;
+    *nn.get_bias_mut(0, 0) = 0.35;
+    *nn.get_bias_mut(0, 1) = 0.35;
+    *nn.get_bias_mut(1, 0) = 0.6;
+    *nn.get_bias_mut(1, 1) = 0.6;
+    nn.set_learning_rate(0.5);
 
     // test the forward pass
     let input = vec!(0.05, 0.1);
@@ -343,16 +356,12 @@ fn test_learn_function() {
 
     // test the back propagation
     nn.learn(&input, &expect);
-    let l10 = (&nn.layers).get(1).unwrap().neurons[0].weights();
-    compare_floats!(&l10[0], &0.35891648, &0.00000001);
-    compare_floats!(&l10[1], &0.408666186, &0.000000001);
-    let l11 = (&nn.layers).get(1).unwrap().neurons[1].weights();
-    compare_floats!(&l11[0], &0.511301270, &0.000000001);
-    compare_floats!(&l11[1], &0.561370121, &0.000000001);
-    let l00 = (&nn.layers).get(0).unwrap().neurons[0].weights();
-    compare_floats!(&l00[0], &0.149780716, &0.000000001);
-    compare_floats!(&l00[1], &0.19956143, &0.00000001);
-    let l01 = (&nn.layers).get(0).unwrap().neurons[1].weights();
-    compare_floats!(&l01[0], &0.24975114, &0.00000001);
-    compare_floats!(&l01[1], &0.29950229, &0.00000001);
+    compare_floats!(nn.get_weight(1, 0, 0), &0.35891648, &0.00000001);
+    compare_floats!(nn.get_weight(1, 0, 1), &0.408666186, &0.000000001);
+    compare_floats!(nn.get_weight(1, 1, 0), &0.511301270, &0.000000001);
+    compare_floats!(nn.get_weight(1, 1, 1), &0.561370121, &0.000000001);
+    compare_floats!(nn.get_weight(0, 0, 0), &0.149780716, &0.000000001);
+    compare_floats!(nn.get_weight(0, 0, 1), &0.19956143, &0.00000001);
+    compare_floats!(nn.get_weight(0, 1, 0), &0.24975114, &0.00000001);
+    compare_floats!(nn.get_weight(0, 1, 1), &0.29950229, &0.00000001);
 }
