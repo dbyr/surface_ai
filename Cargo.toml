@@ -1,8 +1,16 @@
 [package]
 name = "surface_ai"
-version = "0.1.0"
+description = "Experimental machine learning crate (ongoing project, not fit for \"release\" yet)"
+version = "0.0.0"
 authors = ["dbyr <david.michael.byrne17@gmail.com>"]
 edition = "2018"
+repository = "https://github.com/dbyr/surface_ai"
+homepage = "https://github.com/dbyr/surface_ai"
+readme = "README.md"
+keywords = ["ai", "learning", "ml"]
+categories = ["algorithms", "science"]
+license = "MIT OR Apache-2.0"
+exclude = [".github", ".gitignore", "data/*"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

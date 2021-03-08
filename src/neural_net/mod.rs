@@ -5,8 +5,7 @@ use std::{fmt, fmt::Debug};
 
 use crate::perceptron::neuron::{
     Neuron,
-    Type::{Logistic, Linear},
-    LEARNING_RATE
+    Type::{Logistic, Linear}
 };
 use crate::classifier::{
     Classifier,
@@ -16,6 +15,7 @@ use crate::perceptron::helpers::{
     logistic_derivitive,
     linear_derivitive
 };
+use crate::common::within_difference;
 
 struct Layer {
     neurons: Vec<Neuron>,
@@ -24,8 +24,8 @@ struct Layer {
     last_output: Vec<f64>
 }
 
-const MIN_LEARNING_RATE: f64 = 0.0001;
-const LEARNING_RATE_DESCENT_RATE: f64 = 0.9;
+const LEARNING_RATE: f64 = 1f64;
+const ACCEPTABLE_LOSS: f64 = 0.0001;
 
 impl Layer {
     pub fn new(inputs: usize, outputs: usize) -> Layer {
@@ -119,6 +119,10 @@ fn error(expect: &Vec<f64>, actual: &Vec<f64>) -> Option<Vec<f64>> {
     Some(error)
 }
 
+fn loss(error: &Vec<f64>) -> f64 {
+    error.iter().sum::<f64>().powi(2)
+}
+
 // constructs a custom neural net with hidden layers of
 // the provided size in the patter 
 // neural_net!((4; 3), 2, 5)
@@ -162,7 +166,7 @@ impl NeuralNet {
         };
     }
 
-    pub fn classify_for_training(&mut self, datum: &Vec<f64>) -> Option<&Vec<f64>> {
+    fn classify_for_training(&mut self, datum: &Vec<f64>) -> Option<&Vec<f64>> {
         let mut input: Option<&Vec<f64>> = None;
         for layer in self.layers.iter_mut() {
             input = match input {
@@ -176,7 +180,8 @@ impl NeuralNet {
         }
     }
 
-    pub fn learn(&mut self, input: &Vec<f64>, expect: &Vec<f64>) -> Option<()> {
+    // returns the loss
+    fn learn(&mut self, input: &Vec<f64>, expect: &Vec<f64>) -> Option<f64> {
         // feed the input through
         // TODO: find a better way to get the type
         let derivitive = match self.layers[0].neurons[0].of_type() {
@@ -185,6 +190,7 @@ impl NeuralNet {
         };
         let output = self.classify_for_training(input)?;
         let errorv = error(expect, output)?;
+        let lossv = loss(&errorv);
         let output_layer = self.layers.get(self.layers.len() - 1).unwrap();
         let mut delta_i: Vec<f64> = errorv.into_iter().enumerate()
             .map(|(i, v)| v * derivitive(output_layer.act_input[i]))
@@ -220,10 +226,10 @@ impl NeuralNet {
             }
             delta_i = next_delta_i;
         }
-        Some(())
+        Some(lossv)
     }
 
-    fn set_learning_rate(&mut self, learning_rate: f64) {
+    pub fn set_learning_rate(&mut self, learning_rate: f64) {
         self.learning_rate = learning_rate;
     }
 
@@ -269,17 +275,18 @@ impl Classifier<Vec<f64>, Vec<f64>> for NeuralNet {
             return false;
         }
         let mut datum = vec!(0f64; data.get(0).unwrap().len());
-        while self.learning_rate > MIN_LEARNING_RATE {
+        let mut avg_loss = 1f64;
+        while !within_difference(&avg_loss, &0f64, &ACCEPTABLE_LOSS) {
+            let mut loss_sum = 0f64;
             for (datum_raw, expected) in data.iter().zip(expect.iter()) {
                 for (i, attr) in datum_raw.iter().enumerate() {
                     datum[i] = attr * 10f64.powi(self.input_normalise_factor[i] as i32);
                 }
-                self.learn(&datum, expected);
+                loss_sum += self.learn(&datum, expected).unwrap();
             }
-            self.learning_rate *= LEARNING_RATE_DESCENT_RATE;
-            self.set_learning_rate(self.learning_rate);
+            avg_loss = loss_sum / data.len() as f64;
+            // println!("average loss = {}", avg_loss);
         }
-        self.learning_rate = LEARNING_RATE;
         true
     }
 
@@ -321,7 +328,6 @@ impl Debug for NeuralNet {
 #[test]
 fn test_learn_function() {
     use crate::compare_floats;
-    use crate::common::within_difference;
 
     let mut l = Vec::with_capacity(2);
     l.push(Layer::new(2, 2));

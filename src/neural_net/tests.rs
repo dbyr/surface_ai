@@ -3,7 +3,10 @@ use std::str::FromStr;
 use crate::common::read_dataset_file;
 use crate::neural_net::NeuralNet;
 use crate::classifier::Classifier;
-use crate::test_methods::cross_validation_testing;
+use crate::test_methods::{
+    cross_validation_testing,
+    expect_success_rate
+};
 
 use StarCat::{
     RedDwarf,
@@ -143,13 +146,56 @@ fn read_star_file() -> (Vec<Vec<f64>>, Vec<Vec<f64>>) {
 fn test_star_classification() {
     let (mut data, mut expect) = read_star_file();
     let mut nn = NeuralNet::new(4, 3);
-    println!("before: {:#?}", nn);
+    // println!("before: {:#?}", nn);
     nn.train(&data, &expect);
-    println!("after: {:#?}", nn);
+    // println!("after: {:#?}", nn);
 
-    let strat_result = cross_validation_testing(&mut nn, &mut data, &mut expect, 0.9, &|l, r| StarCat::from(l) == StarCat::from(r)).unwrap();
-    println!("Achieved {} strat result", strat_result);
-    assert!(strat_result > 0.5);
+    assert!(expect_success_rate(&nn, &data, &expect, 0.5, &|l, r| StarCat::from(l) == StarCat::from(r)));
+
+    // let strat_result = cross_validation_testing(&mut nn, &mut data, &mut expect, 0.9, &|l, r| StarCat::from(l) == StarCat::from(r)).unwrap();
+    // println!("Achieved {} strat result", strat_result);
+    // assert!(strat_result > 0.5);
+}
+
+#[test]
+fn test_sum_classification() {
+    let (mut data, mut expected) = sum_data();
+    let mut nn = NeuralNet::new_custom(2, 2, vec!(2));
+    nn.train(&data, &expected);
+    data.push(vec!(0.5, 0.5));
+    expected.push(vec!(1.0, 0.0));
+    data.push(vec!(0.75, 0.25));
+    expected.push(vec!(1.0, 0.0));
+    data.push(vec!(0.25, 0.75));
+    expected.push(vec!(1.0, 0.0));
+    data.push(vec!(0.33, 1.66));
+    expected.push(vec!(1.0, 1.0));
+
+    for i in 0..data.len() {
+        let sum = sum_output(&nn.classify(&data[i]));
+        assert_eq!(sum[0], expected[i][0]);
+        assert_eq!(sum[1], expected[i][1]);
+    }
+}
+
+fn sum_output(result: &Vec<f64>) -> Vec<f64> {
+    vec!(result[0].round(), result[1].round())
+}
+
+fn sum_data() -> (Vec<Vec<f64>>, Vec<Vec<f64>>) {
+    let inputs = vec!(
+        vec!(0f64, 0f64),
+        vec!(0f64, 1f64),
+        vec!(1f64, 0f64),
+        vec!(1f64, 1f64)
+    );
+    let outputs = vec!(
+        vec!(0f64, 0f64),
+        vec!(1f64, 0f64),
+        vec!(1f64, 0f64),
+        vec!(1f64, 1f64)
+    );
+    (inputs, outputs)
 }
 
 // just test the to/from methods for the starcat enum

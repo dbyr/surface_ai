@@ -125,8 +125,6 @@ impl Neuron {
         act_func(input)
     }
 
-    // pub fn batch_learn(&mut self, )
-
     // returns the error value
     pub fn learn(&mut self, input: &Vec<f64>, expected: &Classification) -> f64 {
         let f_x = self.classify(input);
