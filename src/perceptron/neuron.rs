@@ -13,7 +13,9 @@ use super::helpers::{
 
 use crate::classification::{
     Classification,
-    Classification::Unclassifiable
+    Classification::{
+        Unclassifiable
+    }
 };
 use crate::classifier::Resettable;
 use crate::common::reasonably_equal;
@@ -22,7 +24,7 @@ use Type::{Linear, Logistic};
 
 pub const LEARNING_RATE: f64 = 1f64;
 const INITIAL_WEIGHT_VAL: f64 = 0f64;
-const INITIAL_WEIGHT_RANGE: f64 = 1f64;
+pub const INITIAL_WEIGHT_RANGE: f64 = 1f64;
 
 pub enum Type {
     Logistic,
@@ -44,10 +46,10 @@ impl Neuron {
         let mut rng = rand::thread_rng();
         Neuron {
             weights: vec!(INITIAL_WEIGHT_VAL; size).into_iter()
-                .map(|_| rng.gen_range(-INITIAL_WEIGHT_RANGE..INITIAL_WEIGHT_RANGE))
+                .map(|_| rng.gen_range(0f64..INITIAL_WEIGHT_RANGE))
                 .collect(),
             of_type: of_type,
-            bias: rng.gen_range(-INITIAL_WEIGHT_RANGE..INITIAL_WEIGHT_RANGE),
+            bias: rng.gen_range(0f64..INITIAL_WEIGHT_RANGE),
             learning_rate: LEARNING_RATE
         }
     }
@@ -107,13 +109,13 @@ impl Neuron {
             );
         }
         let mut input = self.bias;
+        for i in 0..inputs.len() {
+            input += inputs[i] * self.weights[i];
+        }
         let act_func = match self.of_type {
             Linear => linear_function,
             Logistic => logistic_function
         };
-        for i in 0..inputs.len() {
-            input += inputs[i] * self.weights[i];
-        }
         act_func(input)
     }
 
@@ -158,10 +160,11 @@ impl Neuron {
 
 impl Resettable for Neuron {
     fn reset(&mut self) -> bool {
-        self.bias = INITIAL_WEIGHT_VAL;
+        let mut rng = rand::thread_rng();
+        self.bias = rng.gen_range(0f64..INITIAL_WEIGHT_RANGE);
         self.learning_rate = LEARNING_RATE;
         for weight in self.weights.iter_mut() {
-            *weight = INITIAL_WEIGHT_VAL;
+            *weight = rng.gen_range(0f64..INITIAL_WEIGHT_RANGE);
         }
         true
     }

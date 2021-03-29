@@ -103,3 +103,11 @@ pub fn logistic_reweight(
     *bias += reweight_by;
 
 }
+
+pub fn cross_entropy_loss(expected: &Vec<f64>, actual: &Vec<f64>) -> f64 {
+    let mut sum = 0f64;
+    for (p, q) in expected.iter().zip(actual.iter()) {
+        sum += p * q.log10();
+    }
+    -sum
+}
