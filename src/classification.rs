@@ -74,7 +74,7 @@ impl Classification {
 
     pub fn loss(&self, expected: &Classification) -> f64 {
         match self {
-            Positive(v) | Negative(v) => self.error(expected).powi(2),
+            Positive(_) | Negative(_) => self.error(expected).powi(2),
             Probs(vs) => {
                 if let Probs(os) = expected {
                     if vs.len() != os.len() {

@@ -108,8 +108,8 @@ impl Debug for Layer {
 
 pub struct Softmax {
     weights: Vec<f64>,
-    bias: f64,
-    learning_rate: f64,
+    // bias: f64,
+    // learning_rate: f64,
     last_output: Vec<f64>
 }
 
@@ -122,8 +122,8 @@ impl Softmax {
             weights: vec!(0; size).into_iter()
                 .map(|_| rng.gen_range(0f64..INITIAL_WEIGHT_RANGE))
                 .collect(),
-            bias: rng.gen_range(0f64..INITIAL_WEIGHT_RANGE),
-            learning_rate: LEARNING_RATE,
+            // bias: rng.gen_range(0f64..INITIAL_WEIGHT_RANGE),
+            // learning_rate: LEARNING_RATE,
             last_output: vec!(0f64; size)
         }
     }
@@ -308,7 +308,7 @@ impl NeuralNet {
             Logistic => logistic_derivitive,
             Linear => linear_derivitive
         };
-        let mut lossv;
+        let lossv;
         let mut next_delta_i: Vec<f64>;
 
         let mut delta_i = if self.is_softmax() {
