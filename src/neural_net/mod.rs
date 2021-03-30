@@ -1,5 +1,7 @@
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod housing_prices_test;
 
 mod softmax;
 mod layer;
@@ -162,7 +164,6 @@ impl NeuralNet {
                 }
             }
 
-            let error = 1f64 - output[derivitive_of];
             output.iter().enumerate()
                 .map(
                     |(i, v)| {
@@ -172,7 +173,7 @@ impl NeuralNet {
                             0f64
                         };
                         // embedded the softmax derivitive here
-                        error * output[derivitive_of] * (sub_from - v)
+                        output[derivitive_of] * (sub_from - v)
                     }
                 )
                 .collect()
@@ -264,18 +265,25 @@ impl NeuralNet {
 // TODO: extend this to support any datatype that supports Into<Vec<f64>>
 impl Classifier<Vec<f64>, Vec<f64>> for NeuralNet {
     fn train(&mut self, data: &[Vec<f64>], expect: &[Vec<f64>]) -> bool {
+
+        // first normalise the data so all incoming values are
+        // in the range (-1, 1)
         if self.set_normalise_factor(data).is_none() {
             return false;
         }
-        let mut datum = vec!(0f64; data.get(0).unwrap().len());
+        let mut normalised_data = vec!(vec!(0f64; data.get(0).unwrap().len()); data.len());
+        for (datum_raw, datum_normalised) in data.iter().zip(normalised_data.iter_mut()) {
+            for (i, attr) in datum_raw.iter().enumerate() {
+                datum_normalised[i] = attr * 10f64.powi(self.input_normalise_factor[i] as i32);
+            }
+        }
+
+        // train the network with the normalised data
         let mut avg_loss = 1f64;
         let mut iter = 0;
         while !within_difference(&avg_loss, &0f64, &ACCEPTABLE_LOSS) && iter < 500 {
             let mut loss_sum = 0f64;
-            for (datum_raw, expected) in data.iter().zip(expect.iter()) {
-                for (i, attr) in datum_raw.iter().enumerate() {
-                    datum[i] = attr * 10f64.powi(self.input_normalise_factor[i] as i32);
-                }
+            for (datum, expected) in normalised_data.iter().zip(expect.iter()) {
                 loss_sum += self.learn(&datum, expected).unwrap();
             }
             avg_loss = loss_sum / data.len() as f64;
@@ -327,48 +335,4 @@ impl Debug for NeuralNet {
          .field("layers", &self.layers)
          .finish()
     }
-}
-
-// example from https://mattmazur.com/2015/03/17/a-step-by-step-backpropagation-example/
-#[test]
-fn test_learn_function() {
-    use crate::compare_floats;
-
-    let mut l = Vec::with_capacity(2);
-    l.push(Layer::new(2, 2));
-    l.push(Layer::new(2, 2));
-
-    // setup the starting conditions
-    let mut nn = NeuralNet::new_custom_regressor(2, 2, vec!(2));
-    *nn.get_weight_mut(0, 0, 0) = 0.15;
-    *nn.get_weight_mut(0, 0, 1) = 0.2;
-    *nn.get_weight_mut(0, 1, 0) = 0.25;
-    *nn.get_weight_mut(0, 1, 1) = 0.3;
-    *nn.get_weight_mut(1, 0, 0) = 0.4;
-    *nn.get_weight_mut(1, 0, 1) = 0.45;
-    *nn.get_weight_mut(1, 1, 0) = 0.5;
-    *nn.get_weight_mut(1, 1, 1) = 0.55;
-    *nn.get_bias_mut(0, 0) = 0.35;
-    *nn.get_bias_mut(0, 1) = 0.35;
-    *nn.get_bias_mut(1, 0) = 0.6;
-    *nn.get_bias_mut(1, 1) = 0.6;
-    nn.set_learning_rate(0.5);
-
-    // test the forward pass
-    let input = vec!(0.05, 0.1);
-    let expect = vec!(0.01, 0.99);
-    let actual = nn.classify(&input);
-    compare_floats!(&actual[0], &0.75136, &0.00001);
-    compare_floats!(&actual[1], &0.77292, &0.00001);
-
-    // test the back propagation
-    nn.learn(&input, &expect);
-    compare_floats!(nn.get_weight(1, 0, 0), &0.35891648, &0.00000001);
-    compare_floats!(nn.get_weight(1, 0, 1), &0.408666186, &0.000000001);
-    compare_floats!(nn.get_weight(1, 1, 0), &0.511301270, &0.000000001);
-    compare_floats!(nn.get_weight(1, 1, 1), &0.561370121, &0.000000001);
-    compare_floats!(nn.get_weight(0, 0, 0), &0.149780716, &0.000000001);
-    compare_floats!(nn.get_weight(0, 0, 1), &0.19956143, &0.00000001);
-    compare_floats!(nn.get_weight(0, 1, 0), &0.24975114, &0.00000001);
-    compare_floats!(nn.get_weight(0, 1, 1), &0.29950229, &0.00000001);
 }
