@@ -25,15 +25,19 @@ use crate::perceptron::helpers::{
     linear_derivitive,
     cross_entropy_loss
 };
-use crate::common::within_difference;
+use crate::common::{
+    within_difference,
+    get_normalising_factor
+};
 
-const LEARNING_RATE: f64 = 0.05f64;
-const ACCEPTABLE_LOSS: f64 = 0.01;
+const LEARNING_RATE: f64 = 1f64;
+const ACCEPTABLE_LOSS: f64 = 0.005;
 
 pub struct NeuralNet {
     layers: Vec<Layer>,
     learning_rate: f64,
     input_normalise_factor: Vec<i8>,
+    output_normalise_factor: Vec<i8>,
     softmax: Option<Softmax>
 }
 
@@ -78,12 +82,15 @@ impl NeuralNet {
         let mut l = Vec::with_capacity(2);
         l.push(Layer::new(inputs, hiddens)); // hidden layer
         l.push(Layer::new(hiddens, outputs)); // output layer
-        NeuralNet {
+        let mut nn = NeuralNet {
             layers: l,
             learning_rate: LEARNING_RATE,
             input_normalise_factor: vec!(0; inputs),
+            output_normalise_factor: vec!(0; outputs),
             softmax: None
-        }
+        };
+        nn.set_learning_rate(LEARNING_RATE);
+        nn
     }
 
     pub fn new_classifier(inputs: usize, outputs: usize) -> NeuralNet {
@@ -91,12 +98,15 @@ impl NeuralNet {
         let mut l = Vec::with_capacity(2);
         l.push(Layer::new(inputs, hiddens)); // hidden layer
         l.push(Layer::new(hiddens, outputs)); // output layer
-        NeuralNet {
+        let mut nn = NeuralNet {
             layers: l,
             learning_rate: LEARNING_RATE,
             input_normalise_factor: vec!(0; inputs),
+            output_normalise_factor: vec!(0; outputs),
             softmax: Some(Softmax::new(outputs))
-        }
+        };
+        nn.set_learning_rate(LEARNING_RATE);
+        nn
     }
 
     /// Returns a NeuralNet with `inputs` number of inputs,
@@ -114,12 +124,15 @@ impl NeuralNet {
             neurons.push(Layer::new(hiddens[i], hiddens[i+1]));
         }
         neurons.push(Layer::new(hiddens[length-1], outputs));
-        return NeuralNet {
+        let mut nn = NeuralNet {
             layers: neurons,
             learning_rate: LEARNING_RATE,
             input_normalise_factor: vec!(0; inputs),
+            output_normalise_factor: vec!(0; outputs),
             softmax: None
         };
+        nn.set_learning_rate(LEARNING_RATE);
+        nn
     }
 
     fn classify_for_training(&mut self, datum: &Vec<f64>) -> Option<&Vec<f64>> {
@@ -224,16 +237,9 @@ impl NeuralNet {
     }
 
     // assumes all given data has the same length
-    fn set_normalise_factor(&mut self, data: &[Vec<f64>]) -> Option<()> {
-        let mut factors = vec!(0i8; data.get(0)?.len());
-        for datum in data.iter() {
-            for (f, attr) in datum.iter().enumerate() {
-                while (*attr * 10f64.powi(factors[f] as i32)).abs() > 1f64 {
-                    factors[f] -= 1;
-                }
-            }
-        }
-        self.input_normalise_factor = factors;
+    fn set_normalise_factor(&mut self, data: &[Vec<f64>], expect: &[Vec<f64>]) -> Option<()> {
+        self.input_normalise_factor = get_normalising_factor(data)?;
+        self.output_normalise_factor = get_normalising_factor(expect)?;
         Some(())
     }
 
@@ -268,36 +274,43 @@ impl Classifier<Vec<f64>, Vec<f64>> for NeuralNet {
 
         // first normalise the data so all incoming values are
         // in the range (-1, 1)
-        if self.set_normalise_factor(data).is_none() {
+        if self.set_normalise_factor(data, expect).is_none() {
             return false;
         }
         let mut normalised_data = vec!(vec!(0f64; data.get(0).unwrap().len()); data.len());
+        let mut normalised_expect = vec!(vec!(0f64; expect.get(0).unwrap().len()); expect.len());
         for (datum_raw, datum_normalised) in data.iter().zip(normalised_data.iter_mut()) {
             for (i, attr) in datum_raw.iter().enumerate() {
                 datum_normalised[i] = attr * 10f64.powi(self.input_normalise_factor[i] as i32);
             }
         }
+        for (expect_raw, expect_normalised) in expect.iter().zip(normalised_expect.iter_mut()) {
+            for (i, attr) in expect_raw.iter().enumerate() {
+                expect_normalised[i] = attr * 10f64.powi(self.output_normalise_factor[i] as i32);
+            }
+        }
 
         // train the network with the normalised data
         let mut avg_loss = 1f64;
-        let mut iter = 0;
-        while !within_difference(&avg_loss, &0f64, &ACCEPTABLE_LOSS) && iter < 500 {
+        while !within_difference(&avg_loss, &0f64, &ACCEPTABLE_LOSS) {
             let mut loss_sum = 0f64;
-            for (datum, expected) in normalised_data.iter().zip(expect.iter()) {
+            for (datum, expected) in normalised_data.iter().zip(normalised_expect.iter()) {
                 loss_sum += self.learn(&datum, expected).unwrap();
             }
             avg_loss = loss_sum / data.len() as f64;
-            iter += 1;
-            println!("average loss = {}", avg_loss);
+            // println!("average loss = {}", avg_loss);
         }
         true
     }
 
     // TODO: do proper error handling
     fn classify(&self, datum: &Vec<f64>) -> Vec<f64> {
+        let normalised_datum = datum.iter().enumerate().map(
+            |(i, v)| v * 10f64.powi(self.input_normalise_factor[i] as i32)
+        ).collect::<Vec<f64>>();
         let mut layer_iter = self.layers.iter();
         let mut input = match layer_iter.next() {
-            Some(layer) => layer.classify(datum),
+            Some(layer) => layer.classify(&normalised_datum),
             None => return vec!()
         };
         for layer in layer_iter {
@@ -311,7 +324,9 @@ impl Classifier<Vec<f64>, Vec<f64>> for NeuralNet {
                 if let Some(l) = &self.softmax {
                     l.thoughts(&v).thoughts()
                 } else {
-                    v
+                    v.iter().enumerate().map(
+                        |(i, v)| v * 10f64.powi(-self.output_normalise_factor[i] as i32)
+                    ).collect()
                 }
             },
             None => vec!()

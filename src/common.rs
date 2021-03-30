@@ -15,10 +15,12 @@ pub fn within_difference(left: &f64, right: &f64, diff: &f64) -> bool {
     (left - right).abs() < *diff
 }
 
+// read_line should return None if the data
+// for any given line is invalid
 #[cfg(test)]
 pub fn read_dataset_file<I, O>(
     filename: &str,
-    read_line: &dyn Fn(String) -> (I, O),
+    read_line: &dyn Fn(String) -> Option<(I, O)>,
     skip_first: bool
 ) -> Option<(Vec<I>, Vec<O>)> {
     let file = match File::open(filename) {
@@ -32,9 +34,27 @@ pub fn read_dataset_file<I, O>(
     if skip_first {lines.next();}
     for l in lines {
         let line = l.unwrap();
-        let (i, o) = read_line(line);
-        inputs.push(i);
-        outputs.push(o);
+
+        // ignore broken data
+        match read_line(line) {
+            Some((i, o)) => {
+                inputs.push(i);
+                outputs.push(o);
+            },
+            None => continue
+        }
     }
     Some((inputs, outputs))
+}
+
+pub fn get_normalising_factor(data: &[Vec<f64>]) -> Option<Vec<i8>> {
+    let mut factors = vec!(0i8; data.get(0)?.len());
+    for datum in data.iter() {
+        for (f, attr) in datum.iter().enumerate() {
+            while (*attr * 10f64.powi(factors[f] as i32)).abs() > 1f64 {
+                factors[f] -= 1;
+            }
+        }
+    }
+    Some(factors)
 }

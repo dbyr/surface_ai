@@ -223,24 +223,24 @@ impl From<&StarCat> for Vec<f64> {
     }
 }
 
-fn read_star_information(line: String) -> (Vec<f64>, Vec<f64>) {
+fn read_star_information(line: String) -> Option<(Vec<f64>, Vec<f64>)> {
     let parts: Vec<&str> = line.split(",").collect();
     let mut attrs = Vec::new();
     for i in 0..4 {
         attrs.push(f64::from_str(parts[i]).unwrap());
     }
     let out = Vec::<f64>::from(StarCat::from(u32::from_str(parts[4]).unwrap()));
-    (attrs, out)
+    Some((attrs, out))
 }
 
-fn read_star_information_half(line: String) -> (Vec<f64>, Vec<f64>) {
+fn read_star_information_half(line: String) -> Option<(Vec<f64>, Vec<f64>)> {
     let parts: Vec<&str> = line.split(",").collect();
     let mut attrs = Vec::new();
     for i in 0..2 {
         attrs.push(f64::from_str(parts[i]).unwrap());
     }
     let out = Vec::<f64>::from(StarCat::from(u32::from_str(parts[4]).unwrap()));
-    (attrs, out)
+    Some((attrs, out))
 }
 
 #[inline]

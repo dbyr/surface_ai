@@ -17,7 +17,7 @@ use crate::common::read_dataset_file;
 // https://archive.ics.uci.edu/ml/datasets/banknote+authentication
 const BANKNOTE_FILE: &str = "./data/data_banknote_authentication.txt";
 
-fn banknote_from_line(line: String) -> (Vec<f64>, Classification) {
+fn banknote_from_line(line: String) -> Option<(Vec<f64>, Classification)> {
     let parts: Vec<&str> = line.split(",").collect();
     let mut attrs = Vec::new();
     for i in 0..4 {
@@ -28,7 +28,7 @@ fn banknote_from_line(line: String) -> (Vec<f64>, Classification) {
     } else {
         Positive(1f64)
     };
-    (attrs, out)
+    Some((attrs, out))
 }
 
 #[inline]
