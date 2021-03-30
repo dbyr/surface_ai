@@ -7,6 +7,90 @@ use crate::test_methods::{
     cross_validation_testing,
     expect_success_rate
 };
+use crate::common::within_difference;
+
+// example from https://mattmazur.com/2015/03/17/a-step-by-step-backpropagation-example/
+#[test]
+fn test_learn_function() {
+    use crate::compare_floats;
+
+    // setup the starting conditions
+    let mut nn = NeuralNet::new_custom_regressor(2, 2, vec!(2));
+    *nn.get_weight_mut(0, 0, 0) = 0.15;
+    *nn.get_weight_mut(0, 0, 1) = 0.2;
+    *nn.get_weight_mut(0, 1, 0) = 0.25;
+    *nn.get_weight_mut(0, 1, 1) = 0.3;
+    *nn.get_weight_mut(1, 0, 0) = 0.4;
+    *nn.get_weight_mut(1, 0, 1) = 0.45;
+    *nn.get_weight_mut(1, 1, 0) = 0.5;
+    *nn.get_weight_mut(1, 1, 1) = 0.55;
+    *nn.get_bias_mut(0, 0) = 0.35;
+    *nn.get_bias_mut(0, 1) = 0.35;
+    *nn.get_bias_mut(1, 0) = 0.6;
+    *nn.get_bias_mut(1, 1) = 0.6;
+    nn.set_learning_rate(0.5);
+
+    // test the forward pass
+    let input = vec!(0.05, 0.1);
+    let expect = vec!(0.01, 0.99);
+    let actual = nn.classify(&input);
+    compare_floats!(&actual[0], &0.75136, &0.00001);
+    compare_floats!(&actual[1], &0.77292, &0.00001);
+
+    // test the back propagation
+    nn.learn(&input, &expect);
+    compare_floats!(nn.get_weight(1, 0, 0), &0.35891648, &0.00000001);
+    compare_floats!(nn.get_weight(1, 0, 1), &0.408666186, &0.000000001);
+    compare_floats!(nn.get_weight(1, 1, 0), &0.511301270, &0.000000001);
+    compare_floats!(nn.get_weight(1, 1, 1), &0.561370121, &0.000000001);
+    compare_floats!(nn.get_weight(0, 0, 0), &0.149780716, &0.000000001);
+    compare_floats!(nn.get_weight(0, 0, 1), &0.19956143, &0.00000001);
+    compare_floats!(nn.get_weight(0, 1, 0), &0.24975114, &0.00000001);
+    compare_floats!(nn.get_weight(0, 1, 1), &0.29950229, &0.00000001);
+}
+
+#[test]
+fn test_star_classification() {
+    let (mut data, mut expect) = read_star_file(false);
+    let mut nn = NeuralNet::new_classifier(4, 6);
+    // println!("before: {:#?}", nn);
+    nn.train(&data, &expect);
+    // println!("after: {:#?}", nn);
+
+    assert!(expect_success_rate(&nn, &data, &expect, 0.5, &|l, r| StarCat::from(l) == StarCat::from(r)));
+
+    // let strat_result = cross_validation_testing(&mut nn, &mut data, &mut expect, 0.9, &|l, r| StarCat::from(l) == StarCat::from(r)).unwrap();
+    // println!("Achieved {} strat result", strat_result);
+    // assert!(strat_result > 0.5);
+}
+
+#[test]
+fn test_sum_classification() {
+    let (mut data, mut expected) = sum_data();
+    let mut nn = NeuralNet::new_custom_regressor(2, 2, vec!(2));
+    nn.train(&data, &expected);
+    data.push(vec!(0.5, 0.5));
+    expected.push(vec!(1.0, 0.0));
+    data.push(vec!(0.75, 0.25));
+    expected.push(vec!(1.0, 0.0));
+    data.push(vec!(0.25, 0.75));
+    expected.push(vec!(1.0, 0.0));
+    data.push(vec!(0.33, 1.66));
+    expected.push(vec!(1.0, 1.0));
+
+    for i in 0..data.len() {
+        let sum = sum_output(&nn.classify(&data[i]));
+        assert_eq!(sum[0], expected[i][0]);
+        assert_eq!(sum[1], expected[i][1]);
+    }
+}
+
+
+
+/*****************************************************
+* Below is just stuff to support the above test cases
+*
+*****************************************************/
 
 use StarCat::{
     RedDwarf,
@@ -172,41 +256,6 @@ fn read_star_file(half: bool) -> (Vec<Vec<f64>>, Vec<Vec<f64>>) {
     }
 }
 
-#[test]
-fn test_star_classification() {
-    let (mut data, mut expect) = read_star_file(false);
-    let mut nn = NeuralNet::new_regressor(4, 6);
-    // println!("before: {:#?}", nn);
-    nn.train(&data, &expect);
-    // println!("after: {:#?}", nn);
-
-    assert!(expect_success_rate(&nn, &data, &expect, 0.5, &|l, r| StarCat::from(l) == StarCat::from(r)));
-
-    // let strat_result = cross_validation_testing(&mut nn, &mut data, &mut expect, 0.9, &|l, r| StarCat::from(l) == StarCat::from(r)).unwrap();
-    // println!("Achieved {} strat result", strat_result);
-    // assert!(strat_result > 0.5);
-}
-
-#[test]
-fn test_sum_classification() {
-    let (mut data, mut expected) = sum_data();
-    let mut nn = NeuralNet::new_custom_regressor(2, 2, vec!(2));
-    nn.train(&data, &expected);
-    data.push(vec!(0.5, 0.5));
-    expected.push(vec!(1.0, 0.0));
-    data.push(vec!(0.75, 0.25));
-    expected.push(vec!(1.0, 0.0));
-    data.push(vec!(0.25, 0.75));
-    expected.push(vec!(1.0, 0.0));
-    data.push(vec!(0.33, 1.66));
-    expected.push(vec!(1.0, 1.0));
-
-    for i in 0..data.len() {
-        let sum = sum_output(&nn.classify(&data[i]));
-        assert_eq!(sum[0], expected[i][0]);
-        assert_eq!(sum[1], expected[i][1]);
-    }
-}
 
 fn sum_output(result: &Vec<f64>) -> Vec<f64> {
     vec!(result[0].round(), result[1].round())
