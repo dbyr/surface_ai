@@ -1,8 +1,13 @@
 #[cfg(test)]
 mod tests;
 
+mod softmax;
+mod layer;
+
 use std::{fmt, fmt::Debug};
-use rand::Rng;
+
+use softmax::Softmax;
+use layer::Layer;
 
 use crate::perceptron::neuron::{
     Neuron,
@@ -13,13 +18,6 @@ use crate::classifier::{
     Classifier,
     Resettable
 };
-use crate::classification::{
-    Classification,
-    Classification::{
-        Unclassifiable,
-        Probs
-    }
-};
 use crate::perceptron::helpers::{
     logistic_derivitive,
     linear_derivitive,
@@ -27,166 +25,8 @@ use crate::perceptron::helpers::{
 };
 use crate::common::within_difference;
 
-struct Layer {
-    neurons: Vec<Neuron>,
-    activation_input: Vec<f64>,
-    last_input: Vec<f64>,
-    last_output: Vec<f64>
-}
-
-const LEARNING_RATE: f64 = 1f64;
+const LEARNING_RATE: f64 = 0.05f64;
 const ACCEPTABLE_LOSS: f64 = 0.01;
-
-impl Layer {
-    pub fn new(inputs: usize, outputs: usize) -> Layer {
-        let mut p = Vec::with_capacity(outputs);
-        for _ in 0..outputs {
-            p.push(Neuron::new(inputs, Logistic));
-        }
-        Layer {
-            neurons: p,
-            activation_input: vec!(0f64; outputs),
-            last_input: vec!(0f64; inputs),
-            last_output: vec!(0f64; outputs)
-        }
-    }
-
-    pub fn classify(&self, input: &Vec<f64>) -> Option<Vec<f64>> {
-        if input.len() != self.neurons[0].input_size() {return None;}
-        let mut output = Vec::with_capacity(self.neurons.len());
-
-        for i in 0..self.neurons.len() {
-            output.push(self.neurons[i].classify(&input).certainty());
-        }
-        Some(output)
-    }
-
-    fn activate(&self, input: &Vec<f64>) -> Option<(Vec<f64>, Vec<f64>)> {
-        if input.len() != self.neurons[0].input_size() {return None;}
-        let mut output = Vec::with_capacity(self.neurons.len());
-        let mut activation_input = Vec::with_capacity(self.neurons.len());
-
-        for i in 0..self.neurons.len() {
-            let mut inp: f64 = input.iter().enumerate()
-                .map(|(j, v)| v * self.neurons[i].weights()[j])
-                .sum();
-            inp += self.neurons[i].bias();
-            output.push(self.neurons[i].activate(inp).certainty());
-            activation_input.push(inp);
-        }
-        Some((output, activation_input))
-    }
-
-    pub fn classify_for_training(&mut self, input: &Vec<f64>) -> Option<&Vec<f64>> {
-        let (last_out, last_in) = self.activate(input)?;
-        self.last_input = input.clone();
-        self.last_output = last_out;
-        self.activation_input = last_in;
-        Some(&self.last_output)
-    }
-
-    pub fn len(&self) -> usize {
-        self.neurons.len()
-    }
-
-    pub fn reset(&mut self) -> bool {
-        let mut did_reset = true;
-        for neuron in self.neurons.iter_mut() {
-            did_reset &= neuron.reset();
-        }
-        did_reset
-    }
-}
-
-impl Debug for Layer {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Layer:")
-         .field("neurons", &self.neurons)
-         .finish()
-    }
-}
-
-pub struct Softmax {
-    weights: Vec<f64>,
-    // bias: f64,
-    // learning_rate: f64,
-    last_output: Vec<f64>
-}
-
-impl Softmax {
-    pub fn new(
-        size: usize
-    ) -> Self {
-        let mut rng = rand::thread_rng();
-        Softmax {
-            weights: vec!(0; size).into_iter()
-                .map(|_| rng.gen_range(0f64..INITIAL_WEIGHT_RANGE))
-                .collect(),
-            // bias: rng.gen_range(0f64..INITIAL_WEIGHT_RANGE),
-            // learning_rate: LEARNING_RATE,
-            last_output: vec!(0f64; size)
-        }
-    }
-
-    // returns a vec of the probabilities that the data
-    // provided is of the classes represented by the
-    // output vector's indexes
-    pub fn thoughts(&self, data: &Vec<f64>) -> Classification {
-        if data.len() != self.weights.len() {
-            return Unclassifiable("Input length incompatible".to_string());
-        }
-
-        // normalise the data to prevent overflows
-        let constant = -data.iter().max_by(
-            |l, r| match *r - *l {
-                x if x < 0f64 => std::cmp::Ordering::Greater,
-                x if x > 0f64 => std::cmp::Ordering::Less,
-                _ => std::cmp::Ordering::Equal
-            }
-        ).unwrap();
-        // let spread = data.iter().zip(self.weights.iter()).map(
-        //     |(l, r)| {
-        //         let cur = l * r;
-        //         total += cur;
-        //         cur
-        //     }
-        // ).collect::<Vec<f64>>();
-        let mut total = 0f64;
-        let spread = data.iter().map(
-            |v| {
-                let cur = (v + constant).exp();
-                total += cur;
-                cur
-            }
-        ).collect::<Vec<f64>>();
-        Probs(spread.iter().map(|v| v / total).collect::<Vec<f64>>())
-    }
-
-    pub fn classify_for_training(&mut self, data: &Vec<f64>) -> &Vec<f64> {
-        self.last_output = self.thoughts(data).thoughts();
-        &self.last_output
-    }
-
-    // returns the class (as a number from 0 to #classes - 1,
-    // or -1 if the data cannot be used for this neuron)
-    // and the certainty with which this class was selected
-    pub fn classify(&self, data: &Vec<f64>) -> (i32, f64) {
-        let (mut index, mut prob) = (0, 0f64);
-        match self.thoughts(data) {
-            Probs(vs) => for (i, v) in vs.iter().enumerate() {
-                if *v > prob {
-                    prob = *v;
-                    index = i as i32;
-                }
-            },
-            _ => {
-                index = -1;
-                prob = 1f64;
-            }
-        }
-        (index, prob)
-    }
-}
 
 pub struct NeuralNet {
     layers: Vec<Layer>,
@@ -322,9 +162,8 @@ impl NeuralNet {
                 }
             }
 
-            let errorv = output.clone();
-            let last_output = &self.softmax.as_ref().unwrap().last_output;
-            errorv.iter().enumerate()
+            let error = 1f64 - output[derivitive_of];
+            output.iter().enumerate()
                 .map(
                     |(i, v)| {
                         let sub_from = if i == derivitive_of {
@@ -333,7 +172,7 @@ impl NeuralNet {
                             0f64
                         };
                         // embedded the softmax derivitive here
-                        v * last_output[derivitive_of] * (sub_from - last_output[i])
+                        error * output[derivitive_of] * (sub_from - v)
                     }
                 )
                 .collect()
@@ -430,7 +269,8 @@ impl Classifier<Vec<f64>, Vec<f64>> for NeuralNet {
         }
         let mut datum = vec!(0f64; data.get(0).unwrap().len());
         let mut avg_loss = 1f64;
-        while !within_difference(&avg_loss, &0f64, &ACCEPTABLE_LOSS) {
+        let mut iter = 0;
+        while !within_difference(&avg_loss, &0f64, &ACCEPTABLE_LOSS) && iter < 500 {
             let mut loss_sum = 0f64;
             for (datum_raw, expected) in data.iter().zip(expect.iter()) {
                 for (i, attr) in datum_raw.iter().enumerate() {
@@ -439,6 +279,7 @@ impl Classifier<Vec<f64>, Vec<f64>> for NeuralNet {
                 loss_sum += self.learn(&datum, expected).unwrap();
             }
             avg_loss = loss_sum / data.len() as f64;
+            iter += 1;
             println!("average loss = {}", avg_loss);
         }
         true
