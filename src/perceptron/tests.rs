@@ -6,7 +6,10 @@ use crate::classification::{
     Classification::{Positive, Negative},
     average_certainty
 };
-use crate::classifier::Classifier;
+use crate::classifier::{
+    ClassifierBuilder,
+    Classifier
+};
 use crate::test_methods::{
     expect_success_rate,
     cross_validation_testing
@@ -44,7 +47,7 @@ fn test_linear_banknotes() {
     let (mut data, mut expect) = read_banknote_file();
 
     let mut p = Perceptron::new_linear(4);
-    p.train(&data, &expect);
+    p = p.train(&data, &expect).unwrap();
     assert!(expect_success_rate(&p, &data, &expect, 0.95, &|l, r| *l == *r));
     println!("{:?}", p);
 
@@ -58,7 +61,7 @@ fn test_logistic_banknotes() {
     let (mut data, mut expect) = read_banknote_file();
 
     let mut p = Perceptron::new_logistic(4);
-    p.train(&data, &expect);
+    p = p.train(&data, &expect).unwrap();
     assert!(expect_success_rate(&p, &data, &expect, 0.95, &|l, r| *l == *r));
     println!("{:?}", p);
 
@@ -75,7 +78,7 @@ fn test_linear_perceptron_learning() {
     assert_eq!(data.len(), expect.len());
     let mut p = Perceptron::new_linear(2);
 
-    p.train(&data, &expect);
+    p = p.train(&data, &expect).unwrap();
     assert!(expect_success_rate(&p, &data, &expect, 1.0, &|l, r| *l == *r));
     assert!(p.classify(&vec!(5.4, 5.0)).positive());
     assert!(p.classify(&vec!(7.0, 7.5)).positive());
@@ -88,7 +91,7 @@ fn test_linear_perceptron_learning() {
     add_to_expect(&mut expect);
     let mut p = Perceptron::new_linear(2);
 
-    p.train(&data, &expect);
+    p = p.train(&data, &expect).unwrap();
     assert!(expect_success_rate(&p, &data, &expect, 0.92, &|l, r| *l == *r));
 
     let mut p = Perceptron::new_linear(2);

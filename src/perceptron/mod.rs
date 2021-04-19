@@ -16,6 +16,7 @@ use neuron::{
 };
 
 use crate::classifier::{
+    ClassifierBuilder,
     Classifier,
     Resettable
 };
@@ -60,11 +61,12 @@ impl Perceptron {
     }
 }
 
-impl Classifier<Vec<f64>, Classification> for Perceptron {
+impl ClassifierBuilder<Vec<f64>, Classification> for Perceptron {
+    type Result = Perceptron;
 
-    fn train(&mut self, data: &[Vec<f64>], expect: &[Classification]) -> bool {
+    fn train(self, data: &[Vec<f64>], expect: &[Classification]) -> Option<Perceptron> {
         if data.len() != expect.len() {
-            return false;
+            return None;
         }
 
         let mut learning_rate = LEARNING_RATE;
@@ -84,8 +86,11 @@ impl Classifier<Vec<f64>, Classification> for Perceptron {
         }
         // println!("{:?} iterations done", iters.next());
         self.neuron.set_learning_rate(LEARNING_RATE);
-        true
+        Some(self)
     }
+}
+
+impl Classifier<Vec<f64>, Classification> for Perceptron {
 
     fn classify(&self, datum: &Vec<f64>) -> Classification {
         self.neuron.classify(datum)
